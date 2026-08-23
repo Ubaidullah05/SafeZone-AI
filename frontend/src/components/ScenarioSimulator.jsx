@@ -22,8 +22,8 @@ function Slider({ label, value, min, max, onChange, unit = '%' }) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="text-slate-300">{label}</span>
-        <span className="font-mono text-slate-400">{value > 0 ? '+' : ''}{value}{unit}</span>
+        <span className="text-slate-600">{label}</span>
+        <span className="font-mono text-slate-500">{value > 0 ? '+' : ''}{value}{unit}</span>
       </div>
       <input
         type="range"
@@ -62,7 +62,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
           <Slider label="Road Accessibility" value={params.road_accessibility_delta_pct} min={-50} max={50} onChange={update('road_accessibility_delta_pct')} />
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-slate-300">Road Closure</span>
+            <span className="text-xs text-slate-600">Road Closure</span>
             <button
               onClick={() => setParams((p) => ({ ...p, road_closure: !p.road_closure }))}
               className={`relative h-5 w-9 rounded-full transition ${params.road_closure ? 'bg-signal-critical' : 'bg-base-600'}`}
@@ -78,7 +78,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
           <button
             onClick={() => onRunScenario(params)}
             disabled={isRunning}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-signal-critical px-4 py-2.5 font-medium text-white transition hover:brightness-110 disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-signal-critical px-4 py-2.5 font-medium text-white transition hover:brightness-110 disabled:opacity-60 shadow-sm"
           >
             <Zap size={16} />
             {isRunning ? 'Running…' : 'Run Scenario'}
@@ -89,7 +89,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
               onRunScenario(DEFAULT_SCENARIO)
             }}
             title="Reset to baseline"
-            className="flex items-center justify-center rounded-lg border border-base-600 px-3 text-slate-400 transition hover:text-white"
+            className="flex items-center justify-center rounded-lg border border-base-600 px-3 text-slate-500 transition hover:text-slate-800 hover:bg-base-850"
           >
             <RotateCcw size={15} />
           </button>
@@ -101,19 +101,19 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-slate-500">Before → After</p>
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="mb-1 text-slate-500">Before Scenario</p>
-              <p className="text-slate-300">High Risk: <strong className="text-signal-high">{comparison.before_high_risk}</strong></p>
-              <p className="text-slate-300">Critical: <strong className="text-signal-critical">{comparison.before_critical}</strong></p>
-              <p className="text-slate-300">Pop. at Risk: <strong className="text-slate-100">{fmtNumber(comparison.before_population_at_risk)}</strong></p>
+              <p className="mb-1 text-slate-400">Before Scenario</p>
+              <p className="text-slate-600">High Risk: <strong className="text-signal-high">{comparison.before_high_risk}</strong></p>
+              <p className="text-slate-600">Critical: <strong className="text-signal-critical">{comparison.before_critical}</strong></p>
+              <p className="text-slate-600">Pop. at Risk: <strong className="text-slate-800">{fmtNumber(comparison.before_population_at_risk)}</strong></p>
             </div>
             <div>
-              <p className="mb-1 text-slate-500">After Scenario</p>
-              <p className="text-slate-300">High Risk: <strong className="text-signal-high">{comparison.after_high_risk}</strong></p>
-              <p className="text-slate-300">Critical: <strong className="text-signal-critical">{comparison.after_critical}</strong></p>
-              <p className="text-slate-300">Pop. at Risk: <strong className="text-slate-100">{fmtNumber(comparison.after_population_at_risk)}</strong></p>
+              <p className="mb-1 text-slate-400">After Scenario</p>
+              <p className="text-slate-600">High Risk: <strong className="text-signal-high">{comparison.after_high_risk}</strong></p>
+              <p className="text-slate-600">Critical: <strong className="text-signal-critical">{comparison.after_critical}</strong></p>
+              <p className="text-slate-600">Pop. at Risk: <strong className="text-slate-800">{fmtNumber(comparison.after_population_at_risk)}</strong></p>
             </div>
           </div>
-          <div className="mt-3 rounded-md border border-signal-critical/40 bg-signal-critical/10 px-3 py-2 text-center">
+          <div className="mt-3 rounded-md border border-signal-critical/30 bg-signal-critical/8 px-3 py-2 text-center">
             <p className="font-mono text-[10px] uppercase tracking-widest text-signal-critical">Additional Population At Risk</p>
             <p className="font-display text-xl font-bold text-signal-critical">{fmtSigned(comparison.additional_population_at_risk)}</p>
           </div>

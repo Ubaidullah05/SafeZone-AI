@@ -7,14 +7,14 @@ html, body, #root {
 }
 
 body {
-  @apply bg-base-950 text-slate-200 font-body antialiased;
+  @apply bg-base-950 text-slate-700 font-body antialiased;
   background-image:
-    radial-gradient(circle at 15% 0%, rgba(63, 168, 244, 0.08), transparent 40%),
-    radial-gradient(circle at 85% 10%, rgba(245, 56, 76, 0.06), transparent 35%);
+    radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 10%, rgba(220, 38, 38, 0.04), transparent 35%);
 }
 
 ::selection {
-  background: rgba(63, 168, 244, 0.35);
+  background: rgba(37, 99, 235, 0.2);
 }
 
 ::-webkit-scrollbar {
@@ -25,40 +25,40 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #293755;
+  background: #C5D0E4;
   border-radius: 999px;
 }
 
 .leaflet-container {
-  background: #0B111C !important;
+  background: #E8EFF8 !important;
   font-family: inherit;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #131D30;
-  color: #E2E8F0;
+  background: #FFFFFF;
+  color: #1E293B;
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 .leaflet-popup-tip {
-  background: #131D30;
+  background: #FFFFFF;
 }
 .leaflet-control-attribution {
-  background: rgba(11,17,28,0.7) !important;
-  color: #64748B !important;
-}
-.leaflet-control-attribution a {
+  background: rgba(255,255,255,0.85) !important;
   color: #94A3B8 !important;
 }
+.leaflet-control-attribution a {
+  color: #64748B !important;
+}
 .leaflet-control-zoom a {
-  background: #131D30 !important;
-  color: #CBD5E1 !important;
-  border-color: #293755 !important;
+  background: #FFFFFF !important;
+  color: #475569 !important;
+  border-color: #DDE4EF !important;
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(245, 56, 76, 0.6); }
-  100% { box-shadow: 0 0 0 10px rgba(245, 56, 76, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  100% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
 }
 .pulse-critical {
   animation: pulse-ring 1.8s ease-out infinite;
@@ -69,7 +69,7 @@ input[type="range"] {
   appearance: none;
   height: 4px;
   border-radius: 999px;
-  background: #293755;
+  background: #DDE4EF;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -77,15 +77,16 @@ input[type="range"]::-webkit-slider-thumb {
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  background: #3FA8F4;
+  background: #2563EB;
   cursor: pointer;
-  border: 2px solid #0B111C;
+  border: 2px solid #FFFFFF;
 }
 input[type="range"]::-moz-range-thumb {
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  background: #3FA8F4;
+  background: #2563EB;
   cursor: pointer;
-  border: 2px solid #0B111C;
+  border: 2px solid #FFFFFF;
 }
+

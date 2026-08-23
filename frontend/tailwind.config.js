@@ -5,19 +5,19 @@ export default {
     extend: {
       colors: {
         base: {
-          950: '#070B12',
-          900: '#0B111C',
-          850: '#0F1726',
-          800: '#131D30',
-          700: '#1B2740',
-          600: '#293755',
+          950: '#F0F4FA',
+          900: '#FFFFFF',
+          850: '#F7F9FC',
+          800: '#EEF2F8',
+          700: '#DDE4EF',
+          600: '#C5D0E4',
         },
         signal: {
-          safe: '#2FD180',
-          moderate: '#F5B942',
-          high: '#F5793A',
-          critical: '#F5384C',
-          zone: '#3FA8F4',
+          safe: '#16A34A',
+          moderate: '#D97706',
+          high: '#EA580C',
+          critical: '#DC2626',
+          zone: '#2563EB',
         },
       },
       fontFamily: {
@@ -26,7 +26,7 @@ export default {
         body: ['Inter', 'sans-serif'],
       },
       boxShadow: {
-        panel: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.35)',
+        panel: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.08)',
       },
     },
   },

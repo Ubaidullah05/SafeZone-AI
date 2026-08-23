@@ -94,7 +94,7 @@ export default function App() {
 
   if (isLoading || !riskSummary) {
     return (
-      <div className="flex h-screen items-center justify-center bg-base-950 text-slate-400">
+      <div className="flex h-screen items-center justify-center bg-base-950 text-slate-500">
         <p className="font-mono text-sm">Loading SAFEZONE-AI…</p>
       </div>
     )

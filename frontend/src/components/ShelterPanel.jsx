@@ -13,10 +13,10 @@ export default function ShelterPanel({ safeZones }) {
         return (
           <div key={sz.id} className="rounded-lg border border-base-700 bg-base-850 p-3">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-1.5 text-sm font-medium text-slate-100">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                 <Home size={13} className="text-signal-zone" /> {sz.name}
               </p>
-              <span className="font-mono text-xs text-slate-400">{utilization}% full</span>
+              <span className="font-mono text-xs text-slate-500">{utilization}% full</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-base-700">
               <div

@@ -23,10 +23,10 @@ export default function RiskBreakdown({ breakdown }) {
         return (
           <div key={key}>
             <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="text-slate-300">{label}</span>
-              <span className="font-mono text-slate-400">{Math.round(value)}</span>
+              <span className="text-slate-600">{label}</span>
+              <span className="font-mono text-slate-500">{Math.round(value)}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-base-700">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-base-700/40">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${value}%`, background: barColor(value) }}
