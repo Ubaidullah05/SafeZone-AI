@@ -117,7 +117,7 @@ export default function Dashboard({
               onSelectVillage={onSelectVillage}
             />
           </div>
-          <div className="min-h-[280px] flex-1 rounded-xl border border-base-700 bg-base-900 p-4 shadow-panel">
+          <div className="min-h-[280px] flex-1 overflow-hidden rounded-xl border border-base-700 bg-base-900 p-4 shadow-panel">
             <VillagePanel
               village={selectedVillage}
               onFindSafeZone={onFindSafeZone}
