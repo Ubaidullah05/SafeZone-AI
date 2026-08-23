@@ -1,0 +1,52 @@
+[
+  {
+    "id": "SZ001",
+    "name": "Rajpur Relief Center",
+    "latitude": 30.200,
+    "longitude": 78.510,
+    "capacity": 4500,
+    "medical_access": 85,
+    "safety_score": 92,
+    "road_access_score": 80
+  },
+  {
+    "id": "SZ002",
+    "name": "Dehragunj Stadium Shelter",
+    "latitude": 30.150,
+    "longitude": 78.380,
+    "capacity": 3000,
+    "medical_access": 70,
+    "safety_score": 88,
+    "road_access_score": 90
+  },
+  {
+    "id": "SZ003",
+    "name": "Haridwar Road Community Hall",
+    "latitude": 30.095,
+    "longitude": 78.520,
+    "capacity": 1800,
+    "medical_access": 60,
+    "safety_score": 78,
+    "road_access_score": 65
+  },
+  {
+    "id": "SZ004",
+    "name": "Chandpur Government College",
+    "latitude": 30.240,
+    "longitude": 78.440,
+    "capacity": 2500,
+    "medical_access": 55,
+    "safety_score": 82,
+    "road_access_score": 60
+  },
+  {
+    "id": "SZ005",
+    "name": "Vasant Vihar Sports Complex",
+    "latitude": 30.060,
+    "longitude": 78.400,
+    "capacity": 1200,
+    "medical_access": 50,
+    "safety_score": 75,
+    "road_access_score": 70
+  }
+]
