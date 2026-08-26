@@ -109,7 +109,7 @@ export default function Dashboard({
 
         {/* Map + village details */}
         <div className="flex min-h-0 flex-col gap-4">
-          <div className="min-h-[320px] flex-[1.3]">
+          <div className="flex-[1.3] min-h-0">
             <RiskMap
               villages={villages}
               safeZones={safeZones}
@@ -117,7 +117,7 @@ export default function Dashboard({
               onSelectVillage={onSelectVillage}
             />
           </div>
-          <div className="min-h-[280px] flex-1 overflow-hidden rounded-xl border border-base-700 bg-base-900 p-4 shadow-panel">
+          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-base-700 bg-base-900 p-4 shadow-panel">
             <VillagePanel
               village={selectedVillage}
               onFindSafeZone={onFindSafeZone}
