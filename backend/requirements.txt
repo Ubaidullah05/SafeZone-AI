@@ -6,3 +6,6 @@ numpy>=2.0.0
 geopandas>=0.14.4
 shapely>=2.0.4
 python-multipart==0.0.9
+pyjwt>=2.9.0
+passlib[bcrypt]>=1.7.4
+websockets>=12.0

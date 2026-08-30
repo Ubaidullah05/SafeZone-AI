@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
-import Header from './components/Header'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import ProtectedRoute from './auth/ProtectedRoute'
+import LoginPage from './auth/LoginPage'
+import RegisterPage from './auth/RegisterPage'
 import Dashboard from './components/Dashboard'
 import * as api from './services/api'
 import { RAW_VILLAGES, RAW_SAFE_ZONES, runPipeline, runFallbackRecommendation, runFallbackScenario } from './data/fallbackData'
+import { fetchAndCacheManifest } from './services/api'
 
-export default function App() {
+function AppDashboard() {
   const [isDemoMode, setIsDemoMode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [villages, setVillages] = useState([])
@@ -19,6 +24,11 @@ export default function App() {
   const [isRunningScenario, setIsRunningScenario] = useState(false)
 
   useEffect(() => {
+    // Register Service Worker for offline capability
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+
     async function loadInitialData() {
       try {
         await api.checkHealth()
@@ -31,8 +41,9 @@ export default function App() {
         setSafeZones(sz)
         setRiskSummary(summary)
         setIsDemoMode(false)
+        // Cache data for offline use in background
+        fetchAndCacheManifest().catch(() => {})
       } catch (err) {
-        // Backend unreachable -> fall back to bundled sample data, and say so.
         const pipeline = runPipeline(RAW_VILLAGES, RAW_SAFE_ZONES)
         setVillages(pipeline.villages)
         setSafeZones(pipeline.safeZones)
@@ -95,30 +106,52 @@ export default function App() {
   if (isLoading || !riskSummary) {
     return (
       <div className="flex h-screen items-center justify-center bg-base-950 text-slate-500">
-        <p className="font-mono text-sm">Loading SAFEZONE-AI…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-signal-zone border-t-transparent" />
+          <p className="font-mono text-sm">Loading SafeLink - AI…</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base-950">
-      <Header isDemoMode={isDemoMode} />
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <Dashboard
-          villages={villages}
-          safeZones={safeZones}
-          riskSummary={riskSummary}
-          selectedVillage={selectedVillage}
-          selectedVillageId={selectedVillageId}
-          onSelectVillage={handleSelectVillage}
-          onFindSafeZone={handleFindSafeZone}
-          isLoadingRecommendation={isLoadingRecommendation}
-          recommendation={recommendation}
-          onRunScenario={handleRunScenario}
-          scenarioComparison={scenarioComparison}
-          isRunningScenario={isRunningScenario}
-        />
-      </div>
+      <Dashboard
+        villages={villages}
+        safeZones={safeZones}
+        riskSummary={riskSummary}
+        selectedVillage={selectedVillage}
+        selectedVillageId={selectedVillageId}
+        onSelectVillage={handleSelectVillage}
+        onFindSafeZone={handleFindSafeZone}
+        isLoadingRecommendation={isLoadingRecommendation}
+        recommendation={recommendation}
+        onRunScenario={handleRunScenario}
+        scenarioComparison={scenarioComparison}
+        isRunningScenario={isRunningScenario}
+        isDemoMode={isDemoMode}
+      />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppDashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

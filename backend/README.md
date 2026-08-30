@@ -1,4 +1,4 @@
-# SAFEZONE-AI Backend
+# SafeLink - AI Backend
 
 FastAPI service implementing the risk, vulnerability, capacity, relocation
 and scenario-simulation engines described in the root README.
