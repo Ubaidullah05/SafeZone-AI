@@ -96,6 +96,7 @@ export default function Dashboard({ villages, safeZones, riskSummary, selectedVi
             </div>
           </div>
         </main>
+<<<<<<< HEAD
       </div>
       {showSOSForm && <SOSReportForm onSubmit={() => loadStats()} onClose={() => setShowSOSForm(false)} />}
     </div>
@@ -131,6 +132,44 @@ function RiskMapTab({ villages, safeZones, selectedVillageId, onSelectVillage, s
       <div className="flex min-h-0 flex-col rounded-2xl border border-theme bg-bg-card p-5 shadow-card overflow-y-auto">
         <RelocationPanel priorityList={[...villages].filter(v => v.relocation_required).sort((a, b) => b.relocation_priority_score - a.relocation_priority_score)} recommendation={recommendation} onSelectVillage={onSelectVillage} />
       </div>
+=======
+      </div>
+      {showSOSForm && <SOSReportForm onSubmit={() => loadStats()} onClose={() => setShowSOSForm(false)} />}
+    </div>
+  )
+}
+
+function relocation_required_population(s) { return s.relocation_required_population || 0 }
+
+function RiskMapTab({ villages, safeZones, selectedVillageId, onSelectVillage, selectedVillage, onFindSafeZone, isLoadingRecommendation, recommendation, search, onSearch }) {
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[300px_1fr_380px]">
+      <div className="flex min-h-0 flex-col rounded-2xl border border-theme bg-bg-card p-4 shadow-card">
+        <input value={search} onChange={(e) => onSearch(e.target.value)} placeholder="Search habitations…" className="mb-3 rounded-xl border border-theme bg-input px-4 py-2.5 text-sm text-primary outline-none placeholder:text-muted focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+        <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
+          {villages.map((v) => {
+            const sel = v.id === selectedVillageId
+            return (
+              <button key={v.id} onClick={() => onSelectVillage(v.id)} className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition-all ${sel ? 'bg-violet-500/12 border border-violet-500/20' : 'border border-transparent hover:bg-violet-500/5'}`}>
+                <div className="min-w-0">
+                  <p className={`truncate text-sm font-medium ${sel ? 'text-golden' : 'text-primary'}`}>{v.name}</p>
+                  <p className="font-mono text-xs text-muted">{fmtNumber(v.population)} residents</p>
+                </div>
+                <span className="ml-2 shrink-0 rounded-lg px-2.5 py-1 font-mono text-xs font-bold" style={{ color: riskColor(v.risk_level), background: `${riskColor(v.risk_level)}15` }}>{v.risk_score}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-col gap-5">
+        <div className="min-h-[340px] flex-[1.3]"><RiskMap villages={villages} safeZones={safeZones} selectedVillageId={selectedVillageId} onSelectVillage={onSelectVillage} /></div>
+        <div className="min-h-[280px] flex-1 overflow-hidden rounded-2xl border border-theme bg-bg-card p-5 shadow-card"><VillagePanel village={selectedVillage} onFindSafeZone={onFindSafeZone} isLoadingRecommendation={isLoadingRecommendation} /></div>
+      </div>
+      <div className="flex min-h-0 flex-col rounded-2xl border border-theme bg-bg-card p-5 shadow-card overflow-y-auto">
+        <RelocationPanel priorityList={[...villages].filter(v => v.relocation_required).sort((a, b) => b.relocation_priority_score - a.relocation_priority_score)} recommendation={recommendation} onSelectVillage={onSelectVillage} />
+      </div>
+
+>>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
     </div>
   )
 }
