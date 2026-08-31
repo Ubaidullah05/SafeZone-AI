@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-=======
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMeshWebSocket } from '../hooks/useWebSocket';
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
 import { fetchMeshNodes, fetchMeshMessages, fetchMeshHealth, fetchMeshRelayPaths } from '../services/api';
 
 const NODE_COLORS = {
@@ -22,7 +17,6 @@ const TYPE_LABELS = {
   CIVILIAN: '📱 Civilian',
 };
 
-<<<<<<< HEAD
 /* ── Inline demo data (used when backend is unreachable) ── */
 const DEMO_NODES = [
   { id: 'NODE001', device_name: 'Amrapur School Tablet', device_type: 'CIVILIAN', village_name: 'Amrapur', battery_level: 35, status: 'ACTIVE', latitude: 30.203, longitude: 78.460, messages_relayed: 3, signal_strength: 78, latency_ms: 120 },
@@ -58,15 +52,15 @@ const DEMO_MESSAGES = {
 
 function buildDemoHealth(nodes) {
   const total = nodes.length;
-  const active = nodes.filter(n => n.status === 'ACTIVE').length;
-  const inactive = nodes.filter(n => n.status === 'INACTIVE').length;
-  const relaying = nodes.filter(n => n.status === 'RELAYING').length;
-  const gateways = nodes.filter(n => n.device_type === 'GATEWAY').length;
-  const civilians = nodes.filter(n => n.device_type === 'CIVILIAN').length;
-  const volunteers = nodes.filter(n => n.device_type === 'VOLUNTEER').length;
-  const rescue = nodes.filter(n => n.device_type === 'RESCUE').length;
-  const avg_battery = nodes.reduce((s, n) => s + n.battery_level, 0) / total;
-  const total_relayed = nodes.reduce((s, n) => s + n.messages_relayed, 0);
+  const active = nodes.filter(n => n.status === 'ACTIVE' || n.is_active).length;
+  const inactive = nodes.filter(n => n.status === 'INACTIVE' || n.is_active === false).length;
+  const relaying = nodes.filter(n => n.status === 'RELAYING' || n.is_relaying).length;
+  const gateways = nodes.filter(n => (n.type || n.device_type) === 'GATEWAY').length;
+  const civilians = nodes.filter(n => (n.type || n.device_type) === 'CIVILIAN').length;
+  const volunteers = nodes.filter(n => (n.type || n.device_type) === 'VOLUNTEER').length;
+  const rescue = nodes.filter(n => (n.type || n.device_type) === 'RESCUE').length;
+  const avg_battery = total > 0 ? nodes.reduce((s, n) => s + (n.battery ?? n.battery_level ?? 50), 0) / total : 0;
+  const total_relayed = nodes.reduce((s, n) => s + (n.messages_relayed || 0), 0);
 
   return {
     total_nodes: total,
@@ -82,9 +76,9 @@ function buildDemoHealth(nodes) {
     messages_in_transit: 0,
     messages_delivered: DEMO_MESSAGES.delivered.length,
     messages_buffered: 0,
-    network_coverage_pct: Math.round((active / total) * 100 * 10) / 10,
-    avg_signal_strength: Math.round(nodes.reduce((s, n) => s + (n.signal_strength || 80), 0) / total),
-    avg_latency_ms: Math.round(nodes.reduce((s, n) => s + (n.latency_ms || 100), 0) / total),
+    network_coverage_pct: total > 0 ? Math.round((active / total) * 100 * 10) / 10 : 0,
+    avg_signal_strength: total > 0 ? Math.round(nodes.reduce((s, n) => s + (n.signal_strength || 80), 0) / total) : 80,
+    avg_latency_ms: total > 0 ? Math.round(nodes.reduce((s, n) => s + (n.latency_ms || 100), 0) / total) : 100,
     active_clusters: gateways + rescue,
     tick_count: 42,
     clusters: {
@@ -119,6 +113,8 @@ function buildDemoRelayPaths(nodes) {
     paths.push({
       from_id: a, from_name: na.device_name, from_lat: na.latitude, from_lng: na.longitude, from_type: na.device_type,
       to_id: b, to_name: nb.device_name, to_lat: nb.latitude, to_lng: nb.longitude, to_type: nb.device_type,
+      source_node: a,
+      target_node: b,
       active: na.status !== 'INACTIVE' && nb.status !== 'INACTIVE',
       distance_m: Math.round(Math.random() * 8000 + 1000),
       signal_strength: Math.round(Math.random() * 40 + 60),
@@ -128,23 +124,14 @@ function buildDemoRelayPaths(nodes) {
 }
 
 export default function MeshNetworkView() {
+  const { meshData, connected: isWsConnected } = useMeshWebSocket();
   const [nodes, setNodes] = useState(DEMO_NODES);
   const [messages, setMessages] = useState([]);
-  const [relayPaths, setRelayPaths] = useState([]);
+  const [relayPaths, setRelayPaths] = useState(() => buildDemoRelayPaths(DEMO_NODES));
   const [health, setHealth] = useState(() => buildDemoHealth(DEMO_NODES));
   const [selectedNode, setSelectedNode] = useState(null);
   const [messageFlow, setMessageFlow] = useState(DEMO_MESSAGES.delivered);
   const [isLive, setIsLive] = useState(false);
-=======
-export default function MeshNetworkView() {
-  const { meshData, connected: isConnected } = useMeshWebSocket();
-  const [nodes, setNodes] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [relayPaths, setRelayPaths] = useState([]);
-  const [health, setHealth] = useState(null);
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [messageFlow, setMessageFlow] = useState([]);
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -153,16 +140,32 @@ export default function MeshNetworkView() {
     return () => clearInterval(interval);
   }, []);
 
-<<<<<<< HEAD
-  async function loadData() {
-    try {
-      const [nodesData, msgsData, healthData, relayData] = await Promise.all([
-=======
   useEffect(() => {
     if (meshData) {
-      if (meshData.nodes) setNodes(meshData.nodes);
+      if (meshData.nodes && meshData.nodes.length > 0) {
+        const normalizedNodes = meshData.nodes.map(n => ({
+          ...n,
+          type: n.type || n.device_type || 'CIVILIAN',
+          battery: n.battery ?? n.battery_level ?? 50,
+          village: n.village || n.village_name || '',
+          owner_name: n.owner_name || n.device_name || 'Unknown',
+          is_relaying: n.is_relaying ?? n.status === 'RELAYING',
+          is_active: n.is_active ?? n.status !== 'INACTIVE',
+          battery_level: n.battery_level ?? n.battery ?? 50,
+          signal_strength: n.signal_strength ?? 80,
+        }));
+        setNodes(normalizedNodes);
+      }
       if (meshData.health) setHealth(meshData.health);
-      if (meshData.relay_paths) setRelayPaths(meshData.relay_paths);
+      if (meshData.relay_paths) {
+        const normalizedPaths = meshData.relay_paths.map(p => ({
+          ...p,
+          source_node: p.source_node || p.from_id,
+          target_node: p.target_node || p.to_id,
+          active: p.active ?? true,
+        }));
+        setRelayPaths(normalizedPaths);
+      }
       if (meshData.messages && Array.isArray(meshData.messages)) {
         setMessageFlow(prev => {
           const newMsgs = meshData.messages.filter(m =>
@@ -171,47 +174,47 @@ export default function MeshNetworkView() {
           return [...newMsgs, ...prev].slice(0, 20);
         });
       }
+      setIsLive(true);
     }
   }, [meshData]);
 
   async function loadData() {
     try {
-      const [nodesData, messagesData, healthData, relayData] = await Promise.all([
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
+      const [nodesData, msgsData, healthData, relayData] = await Promise.all([
         fetchMeshNodes(),
         fetchMeshMessages(),
         fetchMeshHealth(),
         fetchMeshRelayPaths(),
       ]);
-<<<<<<< HEAD
 
-      // Normalize field names from backend
-      const normalizedNodes = (Array.isArray(nodesData) ? nodesData : []).map(n => ({
-        ...n,
-        // Backend uses device_type, not type
-        type: n.type || n.device_type || 'CIVILIAN',
-        battery: n.battery ?? n.battery_level ?? 50,
-        village: n.village || n.village_name || '',
-        owner_name: n.owner_name || n.device_name || 'Unknown',
-        is_relaying: n.is_relaying ?? n.status === 'RELAYING',
-        is_active: n.is_active ?? n.status !== 'INACTIVE',
-        battery_level: n.battery_level ?? n.battery ?? 50,
-        signal_strength: n.signal_strength ?? 80,
-      }));
+      if (nodesData && nodesData.length > 0) {
+        const normalizedNodes = nodesData.map(n => ({
+          ...n,
+          type: n.type || n.device_type || 'CIVILIAN',
+          battery: n.battery ?? n.battery_level ?? 50,
+          village: n.village || n.village_name || '',
+          owner_name: n.owner_name || n.device_name || 'Unknown',
+          is_relaying: n.is_relaying ?? n.status === 'RELAYING',
+          is_active: n.is_active ?? n.status !== 'INACTIVE',
+          battery_level: n.battery_level ?? n.battery ?? 50,
+          signal_strength: n.signal_strength ?? 80,
+        }));
+        setNodes(normalizedNodes);
+        setHealth(healthData || buildDemoHealth(normalizedNodes));
+      }
 
-      setNodes(normalizedNodes);
-      setHealth(buildDemoHealth(normalizedNodes));
+      if (relayData && relayData.length > 0) {
+        const normalizedPaths = relayData.map(p => ({
+          ...p,
+          source_node: p.source_node || p.from_id,
+          target_node: p.target_node || p.to_id,
+          active: p.active ?? true,
+        }));
+        setRelayPaths(normalizedPaths);
+      }
 
-      // Normalize relay paths
-      const normalizedPaths = (Array.isArray(relayData) ? relayData : []).map(p => ({
-        source_node: p.source_node || p.from_id,
-        target_node: p.target_node || p.to_id,
-        active: p.active ?? true,
-      }));
-      setRelayPaths(normalizedPaths);
-
-      // Normalize messages
       if (msgsData) {
+        setMessages(msgsData);
         const delivered = msgsData.delivered || [];
         if (delivered.length > 0) {
           const normalizedMsgs = delivered.map(m => ({
@@ -229,35 +232,21 @@ export default function MeshNetworkView() {
     } catch (e) {
       console.warn('Backend offline — using demo data:', e.message);
       setIsLive(false);
-      // Demo data is already the default state
-=======
-      setNodes(nodesData);
-      setMessages(messagesData);
-      setHealth(healthData);
-      setRelayPaths(relayData);
-    } catch (e) {
-      console.error('Failed to load mesh data:', e);
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
     }
   }
 
   function getNodePos(node) {
-<<<<<<< HEAD
-    // Auto-scale to fit all nodes into the 900x500 SVG viewport
-    // Data range: lat ~30.05-30.25, lng ~78.39-78.52
-    const lngs = nodes.map(n => n.longitude);
-    const lats = nodes.map(n => n.latitude);
+    const lngs = nodes.map(n => n.longitude || 78.45);
+    const lats = nodes.map(n => n.latitude || 30.15);
     const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
     const minLat = Math.min(...lats), maxLat = Math.max(...lats);
     const padX = 60, padY = 40, w = 900, h = 420;
-    const x = minLng === maxLng ? w / 2 : padX + ((node.longitude - minLng) / (maxLng - minLng)) * (w - 2 * padX);
-    const y = minLat === maxLat ? h / 2 : padY + ((maxLat - node.latitude) / (maxLat - minLat)) * (h - 2 * padY);
-=======
-    const x = ((node.longitude - 72.5) / 0.5) * 700 + 100;
-    const y = ((node.latitude - 23.0) / 0.5) * 400 + 80;
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
+    const x = minLng === maxLng ? w / 2 : padX + (((node.longitude || 78.45) - minLng) / (maxLng - minLng || 1)) * (w - 2 * padX);
+    const y = minLat === maxLat ? h / 2 : padY + ((maxLat - (node.latitude || 30.15)) / (maxLat - minLat || 1)) * (h - 2 * padY);
     return { x, y };
   }
+
+  const liveActive = isLive || isWsConnected;
 
   return (
     <div className="space-y-5">
@@ -265,14 +254,10 @@ export default function MeshNetworkView() {
       {health && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Active Nodes', value: health.active_nodes, icon: '📡', color: 'text-golden' },
-            { label: 'Total Nodes', value: health.total_nodes, icon: '🌐', color: 'text-violet-400' },
-            { label: 'Avg Battery', value: `${health.avg_battery?.toFixed(0)}%`, icon: '🔋', color: 'text-emerald-400' },
-<<<<<<< HEAD
+            { label: 'Active Nodes', value: health.active_nodes ?? 0, icon: '📡', color: 'text-golden' },
+            { label: 'Total Nodes', value: health.total_nodes ?? 0, icon: '🌐', color: 'text-violet-400' },
+            { label: 'Avg Battery', value: `${(health.avg_battery ?? 0).toFixed(0)}%`, icon: '🔋', color: 'text-emerald-400' },
             { label: 'Messages Relayed', value: health.total_messages_relayed || health.messages_relayed || 0, icon: '📨', color: 'text-amber-400' },
-=======
-            { label: 'Messages Relayed', value: health.messages_relayed, icon: '📨', color: 'text-amber-400' },
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
           ].map((metric, i) => (
             <motion.div
               key={metric.label}
@@ -288,7 +273,6 @@ export default function MeshNetworkView() {
         </div>
       )}
 
-<<<<<<< HEAD
       {/* Extended Health Stats */}
       {health && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -312,33 +296,22 @@ export default function MeshNetworkView() {
         </div>
       )}
 
-=======
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* SVG Topology */}
         <div className="xl:col-span-2 rounded-2xl bg-panel border border-theme p-5">
           <div className="flex items-center justify-between mb-4">
-<<<<<<< HEAD
             <h3 className="text-base font-semibold text-primary">🌐 Network Topology</h3>
             <div className="flex items-center gap-2">
-              {isLive ? (
-=======
-            <h3 className="text-base font-semibold text-white">🌐 Network Topology</h3>
-            <div className="flex items-center gap-2">
-              {isConnected && (
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
+              {liveActive ? (
                 <span className="flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
                   LIVE
                 </span>
-<<<<<<< HEAD
               ) : (
                 <span className="flex items-center gap-1.5 text-xs text-amber-400">
                   <span className="w-2 h-2 bg-amber-400 rounded-full" />
                   DEMO
                 </span>
-=======
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
               )}
               <button onClick={loadData} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
                 ↻ Refresh
@@ -352,13 +325,8 @@ export default function MeshNetworkView() {
           >
             {/* Connection Lines */}
             {relayPaths.map((path, i) => {
-<<<<<<< HEAD
               const src = nodes.find(n => n.id === path.source_node || n.id === path.from_id);
               const dst = nodes.find(n => n.id === path.target_node || n.id === path.to_id);
-=======
-              const src = nodes.find(n => n.id === path.source_node);
-              const dst = nodes.find(n => n.id === path.target_node);
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
               if (!src || !dst) return null;
               const p1 = getNodePos(src);
               const p2 = getNodePos(dst);
@@ -366,19 +334,11 @@ export default function MeshNetworkView() {
                 <g key={`path-${i}`}>
                   <line
                     x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-<<<<<<< HEAD
                     stroke={path.active !== false ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.08)'}
                     strokeWidth={path.active !== false ? 1.5 : 0.8}
                     strokeDasharray={path.active === false ? '4 4' : 'none'}
                   />
                   {path.active !== false && (
-=======
-                    stroke="rgba(139,92,246,0.15)"
-                    strokeWidth="1"
-                  />
-                  {/* Animated data packet */}
-                  {path.active && (
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                     <circle r="3" fill="#8B5CF6">
                       <animateMotion
                         dur={`${1.5 + Math.random()}s`}
@@ -394,34 +354,22 @@ export default function MeshNetworkView() {
             {/* Nodes */}
             {nodes.map((node) => {
               const pos = getNodePos(node);
-<<<<<<< HEAD
               const type = node.type || node.device_type || 'CIVILIAN';
               const colors = NODE_COLORS[type] || NODE_COLORS.CIVILIAN;
               const battery = node.battery ?? node.battery_level ?? 50;
               const isSelected = selectedNode?.id === node.id;
               const isRelaying = node.is_relaying || node.status === 'RELAYING';
               const isActive = node.is_active ?? node.status !== 'INACTIVE';
-=======
-              const colors = NODE_COLORS[node.type] || NODE_COLORS.CIVILIAN;
-              const isSelected = selectedNode?.id === node.id;
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
               return (
                 <g
                   key={node.id}
                   className="cursor-pointer"
                   onClick={() => setSelectedNode(node)}
-<<<<<<< HEAD
                   opacity={isActive ? 1 : 0.35}
                 >
                   {/* Glow */}
                   <circle cx={pos.x} cy={pos.y} r="18" fill={colors.glow} opacity={isRelaying ? 0.6 : 0.2}>
                     {isRelaying && (
-=======
-                >
-                  {/* Glow */}
-                  <circle cx={pos.x} cy={pos.y} r="18" fill={colors.glow} opacity={node.is_relaying ? 0.6 : 0.2}>
-                    {node.is_relaying && (
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                       <animate attributeName="r" values="18;28;18" dur="1s" repeatCount="indefinite" />
                     )}
                   </circle>
@@ -431,11 +379,7 @@ export default function MeshNetworkView() {
                     fill="none"
                     stroke={colors.stroke}
                     strokeWidth="2"
-<<<<<<< HEAD
                     strokeDasharray={`${(battery / 100) * 88} 88`}
-=======
-                    strokeDasharray={`${(node.battery / 100) * 88} 88`}
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                     strokeLinecap="round"
                     opacity="0.5"
                     transform={`rotate(-90 ${pos.x} ${pos.y})`}
@@ -462,17 +406,10 @@ export default function MeshNetworkView() {
                     x={pos.x} y={pos.y - 20}
                     textAnchor="middle"
                     fontSize="7"
-<<<<<<< HEAD
                     fill={battery > 50 ? '#A78BFA' : battery > 20 ? '#F59E0B' : '#EF4444'}
                     fontFamily="sans-serif"
                   >
                     {battery.toFixed(0)}%
-=======
-                    fill={node.battery > 50 ? '#A78BFA' : node.battery > 20 ? '#F59E0B' : '#EF4444'}
-                    fontFamily="sans-serif"
-                  >
-                    {node.battery?.toFixed(0)}%
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                   </text>
                 </g>
               );
@@ -503,20 +440,13 @@ export default function MeshNetworkView() {
                 className="rounded-2xl bg-panel border border-theme p-5"
               >
                 <div className="flex items-center justify-between mb-3">
-<<<<<<< HEAD
                   <h4 className="text-base font-bold text-primary">{selectedNode.id}</h4>
                   <span className="text-xs px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/20">
                     {TYPE_LABELS[selectedNode.type || selectedNode.device_type]?.split(' ')[0]} {selectedNode.type || selectedNode.device_type}
-=======
-                  <h4 className="text-base font-bold text-white">{selectedNode.id}</h4>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/20">
-                    {TYPE_LABELS[selectedNode.type]?.split(' ')[0]} {selectedNode.type}
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                   </span>
                 </div>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-<<<<<<< HEAD
                     <span className="text-surface-400">Device</span>
                     <span className="text-primary">{selectedNode.owner_name || selectedNode.device_name || 'Unknown'}</span>
                   </div>
@@ -528,25 +458,11 @@ export default function MeshNetworkView() {
                     <span className="text-surface-400">Battery</span>
                     <span className={`font-mono ${(selectedNode.battery ?? selectedNode.battery_level ?? 50) > 50 ? 'text-emerald-400' : (selectedNode.battery ?? selectedNode.battery_level ?? 50) > 20 ? 'text-amber-400' : 'text-red-400'}`}>
                       {(selectedNode.battery ?? selectedNode.battery_level ?? 50).toFixed(1)}%
-=======
-                    <span className="text-surface-400">Owner</span>
-                    <span className="text-white">{selectedNode.owner_name || 'Unknown'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-surface-400">Village</span>
-                    <span className="text-white">{selectedNode.village}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-surface-400">Battery</span>
-                    <span className={`font-mono ${selectedNode.battery > 50 ? 'text-emerald-400' : selectedNode.battery > 20 ? 'text-amber-400' : 'text-red-400'}`}>
-                      {selectedNode.battery?.toFixed(1)}%
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-surface-400">Signal</span>
-<<<<<<< HEAD
-                    <span className="text-violet-400 font-mono">{selectedNode.signal_strength?.toFixed(1) || '80'} dBm</span>
+                    <span className="text-violet-400 font-mono">{(selectedNode.signal_strength ?? 80).toFixed(1)} dBm</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-surface-400">Latency</span>
@@ -556,19 +472,10 @@ export default function MeshNetworkView() {
                     <span className="text-surface-400">Status</span>
                     <span className={(selectedNode.is_active ?? selectedNode.status !== 'INACTIVE') ? 'text-emerald-400' : 'text-red-400'}>
                       {(selectedNode.is_active ?? selectedNode.status !== 'INACTIVE') ? '● Active' : '○ Inactive'}
-=======
-                    <span className="text-violet-400 font-mono">{selectedNode.signal_strength?.toFixed(1)} dBm</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-surface-400">Status</span>
-                    <span className={selectedNode.is_active ? 'text-emerald-400' : 'text-red-400'}>
-                      {selectedNode.is_active ? '● Active' : '○ Inactive'}
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-surface-400">Relaying</span>
-<<<<<<< HEAD
                     <span className={selectedNode.is_relaying || selectedNode.status === 'RELAYING' ? 'text-golden' : 'text-surface-500'}>
                       {selectedNode.is_relaying || selectedNode.status === 'RELAYING' ? '⚡ Yes' : 'No'}
                     </span>
@@ -581,16 +488,6 @@ export default function MeshNetworkView() {
                 <button
                   onClick={() => setSelectedNode(null)}
                   className="mt-3 w-full text-xs text-surface-400 hover:text-primary py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
-=======
-                    <span className={selectedNode.is_relaying ? 'text-golden' : 'text-surface-500'}>
-                      {selectedNode.is_relaying ? '⚡ Yes' : 'No'}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedNode(null)}
-                  className="mt-3 w-full text-xs text-surface-400 hover:text-white py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                 >
                   Close
                 </button>
@@ -600,11 +497,7 @@ export default function MeshNetworkView() {
 
           {/* Message Flow */}
           <div className="rounded-2xl bg-panel border border-theme p-5">
-<<<<<<< HEAD
             <h4 className="text-base font-semibold text-primary mb-3">📨 Message Flow</h4>
-=======
-            <h4 className="text-base font-semibold text-white mb-3">📨 Message Flow</h4>
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
             <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin pr-1">
               {messageFlow.length === 0 && (
                 <p className="text-sm text-surface-500">No messages yet...</p>
@@ -628,11 +521,7 @@ export default function MeshNetworkView() {
                   </div>
                   <div className="text-surface-400">
                     Hops: <span className="text-golden">{msg.hops}</span> | {' '}
-<<<<<<< HEAD
                     {(msg.via_path || []).join(' → ')}
-=======
-                    {msg.via_path?.join(' → ')}
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                   </div>
                 </motion.div>
               ))}
@@ -641,20 +530,12 @@ export default function MeshNetworkView() {
 
           {/* Clusters */}
           <div className="rounded-2xl bg-panel border border-theme p-5">
-<<<<<<< HEAD
             <h4 className="text-base font-semibold text-primary mb-3">🔗 Clusters</h4>
-=======
-            <h4 className="text-base font-semibold text-white mb-3">🔗 Clusters</h4>
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
             <div className="space-y-2">
               {Object.entries(health?.clusters || {}).map(([name, info]) => (
                 <div key={name} className="text-sm p-3 rounded-xl bg-panel border border-theme">
                   <div className="flex justify-between items-center">
-<<<<<<< HEAD
                     <span className="text-primary font-medium">{name}</span>
-=======
-                    <span className="text-white font-medium">{name}</span>
->>>>>>> 18074bbaf60a6765bb975c4d05b419295635cb24
                     <span className="text-violet-400 text-xs">{info.members?.length} nodes</span>
                   </div>
                   <div className="text-surface-400 text-xs mt-1">
