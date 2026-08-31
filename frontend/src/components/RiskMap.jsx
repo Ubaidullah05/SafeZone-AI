@@ -6,14 +6,14 @@ const DISTRICT_CENTER = [30.14, 78.46]
 
 export default function RiskMap({ villages, safeZones, selectedVillageId, onSelectVillage }) {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl border border-base-700">
-      <MapContainer center={DISTRICT_CENTER} zoom={11} scrollWheelZoom className="h-full w-full">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-theme bg-panel">
+      <MapContainer center={DISTRICT_CENTER} zoom={11} scrollWheelZoom className="h-full w-full" style={{ background: '#0A0A12' }}>
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Hazard zone shading around each habitation, sized/colored by risk level */}
+        {/* Hazard zone shading */}
         {villages.map((v) => (
           <Circle
             key={`hazard-${v.id}`}
@@ -35,17 +35,17 @@ export default function RiskMap({ villages, safeZones, selectedVillageId, onSele
             key={sz.id}
             center={[sz.latitude, sz.longitude]}
             radius={9}
-            pathOptions={{ color: '#0B111C', weight: 2, fillColor: '#3FA8F4', fillOpacity: 1 }}
+            pathOptions={{ color: '#0A0A12', weight: 2, fillColor: '#A78BFA', fillOpacity: 1 }}
           >
             <Tooltip direction="top" offset={[0, -6]}>{sz.name}</Tooltip>
             <Popup>
-              <div className="font-body text-sm">
+              <div className="text-sm">
                 <p className="font-semibold text-white">{sz.name}</p>
-                <p className="text-slate-400">Safe Zone / Shelter</p>
-                <div className="mt-2 space-y-0.5 text-xs">
-                  <p>Capacity: <strong>{fmtNumber(sz.capacity)}</strong></p>
-                  <p>Remaining: <strong>{fmtNumber(sz.remaining_capacity)}</strong></p>
-                  <p>Safety Score: <strong>{sz.safety_score}</strong></p>
+                <p className="text-violet-400">Safe Zone / Shelter</p>
+                <div className="mt-2 space-y-0.5 text-xs text-surface-300">
+                  <p>Capacity: <strong className="text-white">{fmtNumber(sz.capacity)}</strong></p>
+                  <p>Remaining: <strong className="text-white">{fmtNumber(sz.remaining_capacity)}</strong></p>
+                  <p>Safety Score: <strong className="text-white">{sz.safety_score}</strong></p>
                 </div>
               </div>
             </Popup>
@@ -61,7 +61,7 @@ export default function RiskMap({ villages, safeZones, selectedVillageId, onSele
               center={[v.latitude, v.longitude]}
               radius={isSelected ? 12 : 8}
               pathOptions={{
-                color: isSelected ? '#ffffff' : '#0B111C',
+                color: isSelected ? '#F5F0E8' : '#0A0A12',
                 weight: isSelected ? 3 : 1.5,
                 fillColor: riskColor(v.risk_level),
                 fillOpacity: 1,
@@ -72,13 +72,13 @@ export default function RiskMap({ villages, safeZones, selectedVillageId, onSele
                 {v.name} · {v.risk_level}
               </Tooltip>
               <Popup>
-                <div className="font-body text-sm">
+                <div className="text-sm">
                   <p className="font-semibold text-white">{v.name}</p>
                   <p style={{ color: riskColor(v.risk_level) }} className="font-semibold">{v.risk_level} · {v.risk_score}/100</p>
-                  <div className="mt-2 space-y-0.5 text-xs">
-                    <p>Population: <strong>{fmtNumber(v.population)}</strong></p>
+                  <div className="mt-2 space-y-0.5 text-xs text-surface-300">
+                    <p>Population: <strong className="text-white">{fmtNumber(v.population)}</strong></p>
                     {v.relocation_required && (
-                      <p>Needs relocation: <strong>{fmtNumber(v.people_requiring_relocation)}</strong></p>
+                      <p>Needs relocation: <strong className="text-white">{fmtNumber(v.people_requiring_relocation)}</strong></p>
                     )}
                   </div>
                 </div>

@@ -1,8 +1,8 @@
-# SAFEZONE-AI
+# SafeLink - AI
 
 **SIH26191 — Intelligent Identification of Hazard-Based Red Zones, Carrying Capacity Assessment, and Immediate Relocation Needs for Vulnerable Habitations**
 
-> SAFEZONE-AI converts hazard maps into actionable relocation decisions.
+> SafeLink - AI converts hazard maps into actionable relocation decisions.
 
 This is a hackathon **decision-support prototype**, not an autonomous evacuation authority. All data shown is demo/sample data for a fictional-but-geographically-consistent pilot district unless explicitly stated otherwise.
 
@@ -12,7 +12,7 @@ Disaster-prone regions often have hazard maps, but officials still lack a fast w
 
 ## Solution
 
-SAFEZONE-AI implements a transparent, end-to-end pipeline:
+SafeLink - AI implements a transparent, end-to-end pipeline:
 
 ```
 Risk  →  Vulnerability  →  Capacity  →  Relocation

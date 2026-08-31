@@ -2,17 +2,17 @@ import { RISK_COLORS, RISK_LABELS } from '../utils'
 
 export default function RiskLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-[500] rounded-lg border border-base-600 bg-base-900/90 px-3 py-2.5 shadow-panel backdrop-blur">
-      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500">Risk Legend</p>
-      <div className="flex flex-col gap-1">
+    <div className="absolute bottom-4 left-4 z-[500] rounded-2xl border border-theme bg-sidebar px-4 py-3 backdrop-blur-xl shadow-xl">
+      <p className="mb-2 font-mono text-xs uppercase tracking-widest text-surface-500">Risk Legend</p>
+      <div className="flex flex-col gap-1.5">
         {Object.entries(RISK_LABELS).map(([level, label]) => (
-          <div key={level} className="flex items-center gap-2 text-xs text-slate-300">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: RISK_COLORS[level] }} />
+          <div key={level} className="flex items-center gap-2.5 text-sm text-surface-300">
+            <span className="h-3 w-3 rounded-full" style={{ background: RISK_COLORS[level] }} />
             {label}
           </div>
         ))}
-        <div className="mt-1 flex items-center gap-2 border-t border-base-700 pt-1 text-xs text-slate-300">
-          <span className="h-2.5 w-2.5 rounded-sm bg-signal-zone" />
+        <div className="mt-1.5 flex items-center gap-2.5 border-t border-theme pt-2 text-sm text-surface-300">
+          <span className="h-3 w-3 rounded-sm bg-violet-500" />
           Safe Zone / Shelter
         </div>
       </div>
