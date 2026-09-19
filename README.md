@@ -2,11 +2,11 @@
 
 **SIH26191** — Intelligent Identification of Hazard-Based Red Zones, Carrying Capacity Assessment, and Immediate Relocation Needs for Vulnerable Habitations.
 
-> A hackathon decision-support prototype. All data is demo/sample data for a fictional-but-geographically-consistent pilot district unless stated otherwise.
+> A decision-support prototype for disaster management. Real data ingestion from CSV/JSON, with a demo mode fallback for offline development. Mobile-responsive UI.
 
 ## Quick start
 
-**You need:** Node.js ≥ 18.18 and Python 3.11+.
+**You need:** Node.js >= 18.18 and Python 3.11+.
 
 ### 1. Start the backend
 ```bash
@@ -16,26 +16,43 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-Server runs at **http://127.0.0.1:8000** (Swagger docs at `/docs`). The SQLite DB is seeded on first run unless `SAFEZONE_SKIP_SEED=1`.
+Server runs at **http://127.0.0.1:8000** (Swagger docs at `/docs`).
 
-### 2. Start the frontend
+### 2. Ingest real data (one-time)
+```bash
+cd backend
+SAFEZONE_SKIP_SEED=1 python -m scripts.ingest_data
+```
+Populates the SQLite DB with 12 real Kedarnath villages and 5 safe zones. Skip this step to run in demo mode.
+
+### 3. Start the frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Runs at **http://127.0.0.1:3000**. Vite proxies `/api` and `/ws` to the backend automatically (see `vite.config.ts`). Override with `BACKEND_URL=http://other-host:port npm run dev`. The frontend can also point directly at the API by setting `VITE_API_URL` in `frontend/.env` (see `.env.example`).
+Runs at **http://127.0.0.1:3000**. Vite proxies `/api` and `/ws` to the backend automatically.
 
-### 3. Verify the connection
+### 4. Verify the connection
 ```bash
-curl http://127.0.0.1:3000/api/health
-# → {"status":"ok","service":"SafeLink - AI backend","mode":"demo-data",...}
+curl http://127.0.0.1:8000/api/health
+# {"status":"ok","mode":"real-data",...}
 ```
 
-### 4. Run the tests
+### 5. Run the tests
 ```bash
 backend\.venv\Scripts\python.exe -m pytest tests -q
 ```
+
+## Demo mode
+
+Set `SAFEZONE_DEMO_MODE=1` to fall back to bundled JSON sample data:
+
+```bash
+SAFEZONE_DEMO_MODE=1 uvicorn app.main:app --reload
+```
+
+The frontend detects the mode via `/api/health` and shows a **DEMO MODE** badge when the backend is unreachable.
 
 ## Demo credentials
 
@@ -44,15 +61,25 @@ backend\.venv\Scripts\python.exe -m pytest tests -q
 | `admin@safezone.gov` | `Safezone@123` | `1234` | ADMIN |
 | `official@safezone.gov` | `Safezone@123` | `1234` | OFFICIAL |
 | `volunteer@safezone.gov` | `Safezone@123` | — | VOLUNTEER |
-| `rethikas2782@gmail.com` | `1234` | — | ADMIN |
 
 ## How to use the app
 
-1. Open the dashboard — KPI cards and the risk map load from calculated sample data.
-2. Click a **CRITICAL** habitation on the map or in the list.
-3. Review its risk score, factor breakdown, and the auto-generated **WHAT / WHY / ACTION** explanation.
-4. Click **Find Best Safe Zone** to see the recommended destination and the reasoning behind it.
-5. Switch to the **What-If** tab, load the demo scenario (or drag the sliders), and click **Run Scenario** to see before/after comparison.
+1. **Public page** (`/`) — View the danger map, shelter locations, and latest emergency activity. Tap **Send SOS** to submit an emergency report.
+2. **Dashboard** (`/authority`) — KPI cards, risk map, village details. Click a village to see its risk breakdown and recommended shelter.
+3. **Emergency Calls** — View, filter, and adjudicate citizen SOS reports. Reports flow through NEW -> ACKNOWLEDGED -> IN_PROGRESS -> RESOLVED.
+4. **What-If** — Drag hazard/rainfall/population/road sliders and click **See What Happens** to compare before/after scenarios.
+5. **Evacuation** — See which villages should move first and the recommended shelter for each.
+
+## Mobile support
+
+The UI is fully responsive and works on mobile devices:
+
+- **Sidebar** collapses to a hamburger menu with a slide-in drawer on mobile
+- **SOS detail panels** open as bottom sheets on mobile
+- **SOS form** slides up from the bottom like a native mobile form
+- **Tables** convert to card-based lists on small screens
+- **Toast notifications** appear at the bottom of the screen
+- **Safe area** support for notched devices (iPhone, etc.)
 
 ## What the app does
 
@@ -61,37 +88,79 @@ backend\.venv\Scripts\python.exe -m pytest tests -q
 - **Relocation engine** — ranks villages by priority and scores each destination (safety, capacity, road, distance, medical).
 - **Scenario simulator** — drag hazard / rainfall / population / road sliders and re-run the whole pipeline live.
 - **Ground Reality** — blends predicted risk with live citizen SOS reports.
-- **SOS workflow** — NEW → ACKNOWLEDGED → IN_PROGRESS → RESOLVED, with priority scoring and official adjudication.
+- **SOS workflow** — NEW -> ACKNOWLEDGED -> IN_PROGRESS -> RESOLVED, with priority scoring and official adjudication.
 - **Operational priority** — day-of-response ordering once ground truth is factored in.
 - **Learning engine** — observational feedback tunes engine weight shares.
 - **Validation / backtest** — red-zone plausibility checks and a Kedarnath-2013-style backtest.
 - **Real-time** — WebSocket `/ws/alerts` pushes new SOS/alerts to the dashboard.
-- **PWA + demo fallback** — offline-capable service worker, IndexedDB persistence, and a bundled demo-data mode.
+- **Offline support** — IndexedDB caching, service worker, and automatic sync when reconnected.
+
+## Data ingestion
+
+Real village and shelter data is loaded from:
+
+- `data/census_villages.csv` — 12 Kedarnath-area villages with coordinates, population, and vulnerability scores
+- `data/safe_zones.json` — 5 safe zones with capacity, coordinates, and access info
+
+Run the ingestion script to populate the database:
+```bash
+cd backend
+python -m scripts.ingest_data
+```
 
 ## Tech stack
 
-**Frontend:** Vite, React 19, TypeScript, Tailwind CSS, React-Leaflet 5, Framer Motion, Lucide React, Axios, `react-router-dom`, `idb` (IndexedDB), PWA service worker.
+**Frontend:** Vite, React 19, TypeScript, Tailwind CSS 3.4, React-Leaflet 5, Framer Motion, Lucide React, Axios, react-router-dom, idb (IndexedDB), PWA service worker.
 
-**Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, SQLite (`sqlite3` stdlib), WebSockets.
+**Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, SQLite (sqlite3 stdlib), WebSockets.
 
-**Data:** JSON sample data + SQLite; accepts CSV (census) and GeoJSON (hazard layers) inputs so real datasets can be swapped in.
+**Data:** SQLite database populated from CSV/JSON; bundled JSON fallback for demo mode.
 
 ## Environment variables
 
 | Variable | Where | Purpose | Default |
 |---|---|---|---|
 | `SAFEZONE_DB_PATH` | Backend | SQLite database path | `app/data/safelink.db` |
-| `SAFEZONE_JWT_SECRET` | Backend | JWT signing secret | auto-generated → `app/data/.jwt_secret` |
+| `SAFEZONE_JWT_SECRET` | Backend | JWT signing secret | auto-generated |
 | `SAFEZONE_SKIP_SEED` | Backend | Skip demo user seeding | unset |
+| `SAFEZONE_DEMO_MODE` | Backend | Use JSON fallback data when DB is empty | unset |
 | `BACKEND_URL` | Frontend | Proxy target | `http://127.0.0.1:8000` |
 | `PORT` | Frontend | App port | `3000` |
-| `VITE_API_URL` | Frontend | Direct API override (bypasses Vite proxy) | `''` |
-| `NEXT_PUBLIC_API_URL` | Frontend | Deprecated — use `VITE_API_URL` | `''` |
+| `VITE_API_URL` | Frontend | Direct API override | `''` |
 
-## Assumptions & known limitations
+## Project structure
 
-- Travel time uses straight-line haversine distance at ~30 km/h — not a real routing engine.
-- Village/safe-zone names are illustrative, not an official real-world location.
+```
+SafeZone-AI/
+  backend/
+    app/
+      main.py              # FastAPI app, routes, WebSocket
+      db.py                # SQLite schema, villages/safe_zones tables
+      data_loader.py       # DB-first loading with JSON fallback
+      auth.py              # JWT auth, RBAC
+      risk_engine.py       # Multi-factor risk scoring
+      capacity_engine.py   # Shelter allocation
+      relocation_engine.py # Destination ranking
+      scenario_engine.py   # What-if simulation
+      learning_engine.py   # Observational feedback
+    scripts/
+      ingest_data.py       # Populate DB from CSV/JSON
+    data/                  # census_villages.csv, safe_zones.json
+    tests/                 # pytest suite
+  frontend/
+    src/
+      components/          # React components (Dashboard, SOS, Map, etc.)
+      auth/                # Login, Register, AuthContext
+      services/            # API client, offline cache
+      hooks/               # WebSocket hook
+      contexts/            # Theme context
+    index.css              # Tailwind + CSS variables + theming
+```
+
+## Assumptions and limitations
+
+- Travel time uses straight-line haversine distance at ~30 km/h, not a real routing engine.
+- Village/safe-zone names are from the Kedarnath region but illustrative for the prototype.
 - "People requiring relocation" is a modeled fraction, not a census figure.
 - Capacity allocation is greedy-by-priority in a single pipeline run.
 - No live government, satellite, or IoT feeds are connected.
