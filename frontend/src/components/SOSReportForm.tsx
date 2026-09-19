@@ -104,8 +104,8 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
 
   if (submitted) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-md rounded-3xl border border-theme bg-sidebar p-8 text-center shadow-2xl backdrop-blur-xl">
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
+        <div className="w-full max-w-md rounded-3xl border border-theme bg-sidebar p-6 text-center shadow-2xl backdrop-blur-xl sm:p-8">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
             <svg className="h-8 w-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -135,10 +135,10 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-theme bg-sidebar shadow-2xl backdrop-blur-xl scrollbar-thin">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="w-full max-h-[95vh] overflow-y-auto rounded-t-3xl border border-theme bg-sidebar shadow-2xl backdrop-blur-xl scrollbar-thin sm:max-w-lg sm:rounded-3xl">
         {/* Header */}
-        <div className="sticky top-0 flex items-center justify-between border-b border-theme bg-sidebar px-6 py-4 backdrop-blur-xl z-10">
+        <div className="sticky top-0 flex items-center justify-between border-b border-theme bg-sidebar px-4 py-3 backdrop-blur-xl z-10 sm:px-6 sm:py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <AlertTriangle size={20} className="text-red-400" />
@@ -153,9 +153,9 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 p-4 sm:space-y-5 sm:p-6">
           {/* Reporter info */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm text-surface-400">Your Name *</label>
               <input
@@ -198,7 +198,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
           {/* Emergency type */}
           <div>
             <label className="mb-2 block text-sm text-surface-400">Emergency Type *</label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {EMERGENCY_TYPES.map(t => (
                 <button
                   key={t.value}
@@ -248,7 +248,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
           </div>
 
           {/* People affected & medical */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm text-surface-400">People Affected</label>
               <div className="relative">

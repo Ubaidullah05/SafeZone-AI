@@ -67,11 +67,11 @@ export default function PublicView() {
   return (
     <div className="min-h-screen bg-base-950 text-white">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-theme bg-header/80 px-5 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-theme bg-header/80 px-3 py-2.5 backdrop-blur-xl sm:px-5 sm:py-3">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-golden shadow-glow-v">
-              <Shield size={17} className="text-white" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-golden shadow-glow-v sm:h-9 sm:w-9">
+              <Shield size={16} className="text-white sm:w-[17px]" />
             </div>
             <div>
               <span className="font-display text-sm font-bold">SafeLink<span className="text-golden">-AI</span></span>
@@ -80,46 +80,45 @@ export default function PublicView() {
           </div>
           <div className="flex items-center gap-2">
             {offline && (
-              <span className="rounded-full border border-golden/20 bg-golden/10 px-3 py-1 font-mono text-2xs text-golden">
-                <BatteryCharging size={11} className="mr-1 inline" /> Offline snapshot
+              <span className="rounded-full border border-golden/20 bg-golden/10 px-2 py-0.5 font-mono text-2xs text-golden sm:px-3 sm:py-1">
+                <BatteryCharging size={11} className="mr-1 inline" /> Offline
               </span>
             )}
             <Link
               to="/login"
-              className="flex items-center gap-1.5 rounded-xl border border-theme bg-panel px-3.5 py-2 text-xs font-medium text-muted transition hover:border-violet-500/30 hover:text-white"
+              className="flex items-center gap-1.5 rounded-xl border border-theme bg-panel px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-violet-500/30 hover:text-white sm:px-3.5 sm:py-2"
             >
-              <Lock size={12} /> Official Login
+              <Lock size={12} /> <span className="hidden sm:inline">Official Login</span><span className="sm:hidden">Login</span>
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-16">
+      <main className="mx-auto max-w-6xl px-3 pb-12 sm:px-4 sm:pb-16">
         {/* Hero */}
-        <section className="relative mt-8 overflow-hidden rounded-3xl border border-theme bg-sidebar p-8 shadow-2xl">
+        <section className="relative mt-6 overflow-hidden rounded-2xl border border-theme bg-sidebar p-5 shadow-2xl sm:mt-8 sm:rounded-3xl sm:p-8">
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-600/20 blur-[100px]" />
-          <div className="relative grid items-center gap-8 md:grid-cols-2">
+          <div className="relative grid items-center gap-6 sm:gap-8 md:grid-cols-2">
             <div>
-              <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-danger/20 bg-danger/10 px-3 py-1 font-mono text-2xs uppercase tracking-widest text-danger">
+              <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-danger/20 bg-danger/10 px-2.5 py-0.5 font-mono text-2xs uppercase tracking-widest text-danger sm:mb-3 sm:px-3 sm:py-1">
                 <Siren size={12} /> Emergency alert active
               </p>
-              <h1 className="font-display text-3xl font-bold leading-tight md:text-4xl">
+              <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">
                 Know the danger. <span className="text-golden">Reach safety faster.</span>
               </h1>
-              <p className="mt-3 text-sm leading-relaxed text-muted md:text-base">
+              <p className="mt-2 text-sm leading-relaxed text-muted sm:mt-3 sm:text-base">
                 Live danger zones, shelter capacity, and one-tap emergency alerting for every village.
-                The map below is read-only; authorities handle every emergency report directly.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-4 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
                 <button
                   onClick={() => setShowSOS(true)}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-red-500/25 transition-all hover:from-red-500 hover:to-red-400"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/25 transition-all hover:from-red-500 hover:to-red-400 sm:px-6 sm:py-3"
                 >
                   <Siren size={16} /> Send SOS
                 </button>
                 <a
                   href="#map"
-                  className="flex items-center gap-2 rounded-xl border border-theme bg-panel px-6 py-3 text-sm font-medium text-muted transition hover:border-violet-500/30 hover:text-white"
+                  className="flex items-center gap-2 rounded-xl border border-theme bg-panel px-4 py-2.5 text-sm font-medium text-muted transition hover:border-violet-500/30 hover:text-white sm:px-6 sm:py-3"
                 >
                   <MapPin size={15} /> View Danger Map
                 </a>
@@ -127,29 +126,29 @@ export default function PublicView() {
             </div>
 
             {/* Live stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-theme bg-panel p-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="rounded-2xl border border-theme bg-panel p-3 sm:p-4">
                 <p className="font-mono text-2xs uppercase tracking-widest text-muted">High-danger zones</p>
-                <p className="mt-1 text-3xl font-bold text-danger">{criticalCount}</p>
+                <p className="mt-1 text-2xl font-bold text-danger sm:text-3xl">{criticalCount}</p>
                 <p className="text-xs text-muted">of {villages.length} villages</p>
               </div>
-              <div className="rounded-2xl border border-theme bg-panel p-4">
+              <div className="rounded-2xl border border-theme bg-panel p-3 sm:p-4">
                 <p className="font-mono text-2xs uppercase tracking-widest text-muted">Shelter capacity</p>
-                <p className="mt-1 text-3xl font-bold text-violet-300">{totalCapacity.toLocaleString()}</p>
+                <p className="mt-1 text-2xl font-bold text-violet-300 sm:text-3xl">{totalCapacity.toLocaleString()}</p>
                 <p className="text-xs text-muted">across {safeZones.length} shelters</p>
               </div>
-              <div className="rounded-2xl border border-theme bg-panel p-4">
+              <div className="rounded-2xl border border-theme bg-panel p-3 sm:p-4">
                 <p className="font-mono text-2xs uppercase tracking-widest text-muted">Active emergency reports</p>
-                <p className="mt-1 text-3xl font-bold text-golden">{latest.length}</p>
+                <p className="mt-1 text-2xl font-bold text-golden sm:text-3xl">{latest.length}</p>
                 <p className="text-xs text-muted">awaiting official action</p>
               </div>
-              <div className="rounded-2xl border border-theme bg-panel p-4">
+              <div className="rounded-2xl border border-theme bg-panel p-3 sm:p-4">
                 <p className="font-mono text-2xs uppercase tracking-widest text-muted">System accuracy</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-400">
+                <p className="mt-1 text-2xl font-bold text-emerald-400 sm:text-3xl">
                   {learning ? `${Math.round((learning.confidence || 0) * 100)}%` : '—'}
                 </p>
                 <p className="text-xs text-muted">
-                  {learning ? `${learning.observations || learning.n_observations || 0} observations learned` : 'from outcome validation'}
+                  {learning ? `${learning.observations || learning.n_observations || 0} observations` : 'from outcome validation'}
                 </p>
               </div>
             </div>
@@ -157,20 +156,20 @@ export default function PublicView() {
         </section>
 
         {/* Map */}
-        <section id="map" className="mt-8">
+        <section id="map" className="mt-6 sm:mt-8">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h2 className="font-display text-xl font-bold">Village Danger Map</h2>
               <p className="text-xs text-muted">Colour = danger score; violet pins = shelters.</p>
             </div>
           </div>
-          <div className="h-[480px]">
+          <div className="h-[300px] sm:h-[400px] md:h-[480px]">
             <Suspense fallback={<div className="flex h-full w-full items-center justify-center rounded-2xl border border-theme bg-panel"><div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" /></div>}><RiskMap villages={villages} safeZones={safeZones} selectedVillageId={null} onSelectVillage={() => {}} /></Suspense>
           </div>
         </section>
 
         {/* Transparency: backtest + latest SOS feed */}
-        <section className="mt-8 grid gap-4 md:grid-cols-2">
+        <section className="mt-6 grid gap-3 sm:mt-8 sm:gap-4 md:grid-cols-2">
           {backtest && backtest.rows && (
             <div className="rounded-2xl border border-theme bg-sidebar p-5">
               <div className="mb-3 flex items-center gap-2">
@@ -226,9 +225,9 @@ export default function PublicView() {
         </section>
 
         {/* Preparedness */}
-        <section className="mt-8 rounded-2xl border border-theme bg-sidebar p-6">
-          <h3 className="mb-4 font-display text-lg font-bold">If an evacuation order is issued</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-6 rounded-2xl border border-theme bg-sidebar p-4 sm:mt-8 sm:p-6">
+          <h3 className="mb-3 font-display text-lg font-bold sm:mb-4">If an evacuation order is issued</h3>
+          <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ['📍 Know your shelter', 'Check the map for the nearest shelter and plan your route now.'],
               ['📦 Carry essentials', 'Water, medicine, documents, warm clothing, phone, and a power bank.'],

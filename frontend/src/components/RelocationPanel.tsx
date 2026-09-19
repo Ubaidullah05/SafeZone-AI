@@ -53,10 +53,34 @@ export default function RelocationPanel({ priorityList, recommendation, onSelect
 
       <div>
         <p className="mb-3 font-mono text-xs uppercase tracking-widest text-surface-500">Who Should Move First</p>
-        {priorityList.length === 0 ? (
+          {priorityList.length === 0 ? (
           <p className="text-sm text-surface-500">No villages currently need to move.</p>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-theme">
+          <>
+            {/* Mobile card view */}
+            <div className="space-y-2 lg:hidden">
+              {priorityList.map((v, idx) => (
+                <button
+                  key={v.id}
+                  onClick={() => onSelectVillage(v.id)}
+                  className="w-full rounded-xl border border-theme bg-panel p-3 text-left transition hover:bg-panel-hover"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-surface-700 font-mono text-2xs text-surface-400">{idx + 1}</span>
+                      <span className="text-sm font-medium text-white">{v.name}</span>
+                    </div>
+                    <span className="font-mono text-sm font-bold" style={{ color: riskColor(v.risk_level) }}>{v.risk_score}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-surface-400">
+                    <span>{fmtNumber(v.people_requiring_relocation)} to move</span>
+                    <span>{v.recommended_safe_zone_name || '—'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {/* Desktop table view */}
+            <div className="hidden overflow-hidden rounded-2xl border border-theme lg:block">
             <table className="w-full text-left text-sm">
               <thead className="bg-panel">
                 <tr>
@@ -87,7 +111,8 @@ export default function RelocationPanel({ priorityList, recommendation, onSelect
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
-import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react'
-import { useState } from 'react'
+import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, Menu, X, type LucideIcon } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 interface NavItem {
   id: string
@@ -23,31 +23,49 @@ interface SidebarProps {
   onTabChange: (tab: string) => void
   sosCount: number
   role?: string
+  mobileOpen: boolean
+  onMobileClose: () => void
 }
 
-export default function Sidebar({ activeTab, onTabChange, sosCount, role }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, sosCount, role, mobileOpen, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const nav: NavItem[] = role === 'ADMIN'
     ? [...BASE_NAV, { id: 'accounts', icon: UserPlus, label: 'People', color: '#22D3EE' }]
     : BASE_NAV
 
-  return (
-    <aside className={`flex h-full flex-col border-r border-theme bg-sidebar py-5 backdrop-blur-xl transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[72px] lg:w-[250px]'}`}>
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [mobileOpen])
+
+  const handleNav = (id: string) => {
+    onTabChange(id)
+    onMobileClose()
+  }
+
+  const sidebarContent = (
+    <>
       {/* Logo */}
       <div className="mb-6 flex items-center justify-between px-4">
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-golden shadow-glow-v">
             <Shield size={18} className="text-white" strokeWidth={2.5} />
           </div>
-          {!collapsed && (
-            <div className="animate-fade-in">
-              <span className="font-display text-lg font-bold text-primary">SafeLink</span>
-              <span className="block font-mono text-2xs uppercase tracking-[0.2em] text-muted">AI Platform</span>
-            </div>
-          )}
+          <div className="animate-fade-in">
+            <span className="font-display text-lg font-bold text-primary">SafeLink</span>
+            <span className="block font-mono text-2xs uppercase tracking-[0.2em] text-muted">AI Platform</span>
+          </div>
         </div>
+        {/* Desktop collapse button */}
         <button onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-panel hover:text-primary">
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+        {/* Mobile close button */}
+        <button onClick={onMobileClose} className="flex lg:hidden h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-panel hover:text-primary">
+          <X size={16} />
         </button>
       </div>
 
@@ -57,7 +75,7 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role }: Side
           const Icon = item.icon
           const active = activeTab === item.id
           return (
-            <button key={item.id} onClick={() => onTabChange(item.id)} title={item.label}
+            <button key={item.id} onClick={() => handleNav(item.id)} title={item.label}
               className={`group relative flex items-center gap-3.5 rounded-xl px-3.5 py-3 transition-all duration-200 ${active ? 'bg-panel text-primary' : 'text-muted hover:bg-panel hover:text-secondary'}`}>
               {active && <div className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full" style={{ background: item.color }} />}
               <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition" style={{ background: active ? `${item.color}18` : 'transparent' }}>
@@ -66,29 +84,57 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role }: Side
                   <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 font-mono text-2xs font-bold text-white animate-pulse">{sosCount > 9 ? '9+' : sosCount}</span>
                 )}
               </div>
-              {!collapsed && <span className="hidden text-sm font-medium lg:block">{item.label}</span>}
+              <span className="text-sm font-medium">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
       {/* Bottom */}
-      {!collapsed && (
-        <div className="hidden px-3 lg:block">
-          <div className="rounded-xl border border-theme bg-panel p-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <div className="h-2.5 w-2.5 rounded-full bg-safe" />
-                <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-safe animate-ping" style={{ animationDuration: '3s' }} />
-              </div>
-              <div>
-                <span className="font-mono text-2xs uppercase tracking-wide text-muted">Safety help</span>
-                <span className="block font-mono text-2xs text-muted">Public page at /</span>
-              </div>
+      <div className="px-3">
+        <div className="rounded-xl border border-theme bg-panel p-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div className="h-2.5 w-2.5 rounded-full bg-safe" />
+              <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-safe animate-ping" style={{ animationDuration: '3s' }} />
+            </div>
+            <div>
+              <span className="font-mono text-2xs uppercase tracking-wide text-muted">Safety help</span>
+              <span className="block font-mono text-2xs text-muted">Public page at /</span>
             </div>
           </div>
         </div>
+      </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className={`hidden lg:flex h-full flex-col border-r border-theme bg-sidebar py-5 backdrop-blur-xl transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[250px]'}`}>
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile hamburger button - fixed position */}
+      <button
+        onClick={() => {}} // placeholder, actual button is in Header
+        className="hidden"
+      />
+
+      {/* Mobile drawer overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+            onClick={onMobileClose}
+          />
+          {/* Drawer */}
+          <aside className="absolute left-0 top-0 h-full w-[280px] flex flex-col border-r border-theme bg-sidebar py-5 backdrop-blur-xl animate-slide-in-left">
+            {sidebarContent}
+          </aside>
+        </div>
       )}
-    </aside>
+    </>
   )
 }

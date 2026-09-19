@@ -152,7 +152,10 @@ body::before {
 }
 
 /* ===== Toast ===== */
-.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; max-width: 90vw; }
+@media (max-width: 639px) {
+  .toast-container { left: 12px; right: 12px; bottom: 12px; }
+}
 .toast-container > * { pointer-events: auto; }
 
 /* ===== Focus ===== */
@@ -188,3 +191,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 /* Type-safe arbitrary z-index helper used by leaflet layers */
 
 /* ===== Face/thumb (removed) — retained only for legacy CSS compat ===== */
+
+/* ===== Mobile slide-in-left for sidebar drawer ===== */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ===== Mobile safe area ===== */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .toast-container { bottom: calc(12px + env(safe-area-inset-bottom)); }
+}

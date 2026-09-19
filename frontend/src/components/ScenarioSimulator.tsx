@@ -50,7 +50,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
   const update = (key: keyof ScenarioAdjustments) => (value: number | boolean) => setParams((p) => ({ ...p, [key]: value }))
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin sm:gap-4">
       <div>
         <div className="mb-3 flex items-center justify-between">
           <p className="font-mono text-xs uppercase tracking-widest text-surface-500">What If Things Change</p>

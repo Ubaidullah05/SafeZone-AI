@@ -61,7 +61,7 @@ export default function GroundRealityPanel() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 p-1 sm:space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-primary">🧠 What People Are Reporting</h2>
