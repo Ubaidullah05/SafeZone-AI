@@ -175,8 +175,8 @@ export default function GroundRealityPanel() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-primary">🧠 Ground Reality Engine</h2>
-          <p className="text-sm text-secondary mt-1">Combined predicted risk + real-time citizen reports</p>
+          <h2 className="text-xl font-bold text-primary">🧠 What People Are Reporting</h2>
+          <p className="text-sm text-secondary mt-1">Combined predicted danger + real-time citizen reports</p>
         </div>
       </div>
 
@@ -220,7 +220,7 @@ export default function GroundRealityPanel() {
                   <span className="text-xs text-violet-400 w-10 text-right font-mono">{predicted.toFixed(0)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-secondary w-20">Ground</span>
+                  <span className="text-xs text-secondary w-20">What People Say</span>
                   <div className="flex-1 h-2.5 bg-white/5 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
@@ -265,7 +265,7 @@ export default function GroundRealityPanel() {
       {/* Operational Priority Queue */}
       {priorityData.length > 0 && (
         <div className="rounded-2xl bg-panel border border-theme p-5">
-          <h3 className="text-lg font-bold text-primary mb-4">📊 Operational Priority Queue</h3>
+          <h3 className="text-lg font-bold text-primary mb-4">📊 Priority Action Queue</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -273,7 +273,7 @@ export default function GroundRealityPanel() {
                   <th className="text-left py-3 px-4 text-secondary font-medium">Rank</th>
                   <th className="text-left py-3 px-4 text-secondary font-medium">Village</th>
                   <th className="text-left py-3 px-4 text-secondary font-medium">Score</th>
-                  <th className="text-left py-3 px-4 text-secondary font-medium">Active SOS</th>
+                  <th className="text-left py-3 px-4 text-secondary font-medium">Active Emergency Calls</th>
                   <th className="text-left py-3 px-4 text-secondary font-medium">Critical</th>
                   <th className="text-left py-3 px-4 text-secondary font-medium">People Affected</th>
                   <th className="text-left py-3 px-4 text-secondary font-medium">Action</th>

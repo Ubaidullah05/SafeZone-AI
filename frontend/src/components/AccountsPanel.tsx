@@ -59,8 +59,8 @@ export default function AccountsPanel() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold text-primary">Authority Accounts</h2>
-          <p className="text-sm text-muted">Create and manage sign-in access for command-room personnel.</p>
+          <h2 className="font-display text-xl font-bold text-primary">People & Accounts</h2>
+          <p className="text-sm text-muted">Create and manage sign-in access for team members.</p>
         </div>
         <button onClick={loadUsers} className="flex items-center gap-1.5 rounded-xl border border-theme bg-panel px-3 py-2 text-xs text-muted transition hover:text-white">
           <RefreshCw size={13} /> Refresh

@@ -91,7 +91,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
       setSubmitted(true)
       if (onSubmit) onSubmit()
     } catch (err) {
-      setError('Failed to submit SOS. Please try again.')
+      setError('Failed to submit emergency call. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -113,7 +113,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
           <div className="mt-4 rounded-xl border border-golden/20 bg-golden/5 p-4">
             <p className="font-mono text-xs uppercase tracking-widest text-golden">What happens next</p>
             <ul className="mt-2 space-y-1.5 text-sm text-surface-400">
-              <li>🏢 Report submitted to the authority control room</li>
+              <li>🏢 Report submitted to the district safety board</li>
               <li>🚑 Response is prioritized by type, severity, and people affected</li>
               <li>📶 If you were offline, the report is queued on this device and synced when a connection returns</li>
             </ul>
@@ -139,8 +139,8 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
               <AlertTriangle size={20} className="text-red-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">🚨 Submit SOS Report</h2>
-              <p className="text-xs text-surface-400">Sent to the district authority control room</p>
+              <h2 className="text-lg font-bold text-white">🚨 Submit Emergency Call</h2>
+              <p className="text-xs text-surface-400">Sent to the district safety board</p>
             </div>
           </div>
           <button onClick={onClose} className="text-surface-500 hover:text-white transition-colors">
@@ -316,7 +316,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
             ) : (
               <>
-                <Send size={18} /> 🚨 SEND SOS REPORT
+                <Send size={18} /> 🚨 SEND EMERGENCY CALL
               </>
             )}
           </button>

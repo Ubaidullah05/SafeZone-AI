@@ -10,12 +10,12 @@ interface NavItem {
 }
 
 const BASE_NAV: NavItem[] = [
-  { id: 'risk', icon: Map, label: 'Risk Map', color: 'var(--surface-400)' },
-  { id: 'sos', icon: Radio, label: 'SOS Reports', color: '#F43F5E', badge: true },
-  { id: 'ground', icon: Brain, label: 'Ground Reality', color: '#C084FC' },
-  { id: 'scenario', icon: Zap, label: 'What-If', color: 'var(--golden)' },
-  { id: 'relocation', icon: Users, label: 'Relocation', color: '#FB923C' },
-  { id: 'shelters', icon: Home, label: 'Safe Zones', color: '#34D399' },
+  { id: 'risk', icon: Map, label: 'Danger Map', color: 'var(--surface-400)' },
+  { id: 'sos', icon: Radio, label: 'Emergency Calls', color: '#F43F5E', badge: true },
+  { id: 'ground', icon: Brain, label: 'What People Report', color: '#C084FC' },
+  { id: 'scenario', icon: Zap, label: 'What If', color: 'var(--golden)' },
+  { id: 'relocation', icon: Users, label: 'Who Should Move', color: '#FB923C' },
+  { id: 'shelters', icon: Home, label: 'Shelters', color: '#34D399' },
 ]
 
 interface SidebarProps {
@@ -28,7 +28,7 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, onTabChange, sosCount, role }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const nav: NavItem[] = role === 'ADMIN'
-    ? [...BASE_NAV, { id: 'accounts', icon: UserPlus, label: 'Accounts', color: '#22D3EE' }]
+    ? [...BASE_NAV, { id: 'accounts', icon: UserPlus, label: 'People', color: '#22D3EE' }]
     : BASE_NAV
 
   return (
@@ -82,8 +82,8 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role }: Side
                 <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-safe animate-ping" style={{ animationDuration: '3s' }} />
               </div>
               <div>
-                <span className="font-mono text-2xs uppercase tracking-wide text-muted">Decision support</span>
-                <span className="block font-mono text-2xs text-muted">Public portal live at /</span>
+                <span className="font-mono text-2xs uppercase tracking-wide text-muted">Safety help</span>
+                <span className="block font-mono text-2xs text-muted">Public page at /</span>
               </div>
             </div>
           </div>

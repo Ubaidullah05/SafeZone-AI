@@ -19,8 +19,8 @@ export default function AlertBanner({ criticalCount, sosStats }: AlertBannerProp
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-danger/15"><AlertTriangle size={14} className="text-danger-light animate-pulse" /></div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-            {criticalCount > 0 && <span className="text-danger-light font-medium"><strong>{criticalCount}</strong> villages at CRITICAL risk</span>}
-            {newReports > 0 && <span className="text-danger-light/80 font-medium"><strong>{newReports}</strong> new SOS reports pending</span>}
+            {criticalCount > 0 && <span className="text-danger-light font-medium"><strong>{criticalCount}</strong> villages at critical danger</span>}
+            {newReports > 0 && <span className="text-danger-light/80 font-medium"><strong>{newReports}</strong> new emergency calls pending</span>}
             {medicalEmergencies > 0 && <span className="text-danger-light font-bold">🏥 {medicalEmergencies} medical emergencies</span>}
           </div>
         </div>

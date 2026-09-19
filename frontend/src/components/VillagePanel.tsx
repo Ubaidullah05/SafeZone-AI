@@ -14,7 +14,7 @@ export default function VillagePanel({ village, onFindSafeZone, isLoadingRecomme
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-violet-500/20 p-8 text-center text-surface-500">
         <MapPin size={28} className="text-violet-400/40" />
-        <p className="text-base text-surface-400">Select a village on the map or from the list to view its risk profile.</p>
+        <p className="text-base text-surface-400">Select a village on the map or from the list to see its danger level.</p>
       </div>
     )
   }
@@ -42,7 +42,7 @@ export default function VillagePanel({ village, onFindSafeZone, isLoadingRecomme
       <div className="rounded-2xl border border-theme bg-panel p-4">
         <div className="flex items-end justify-between">
           <div>
-            <p className="font-mono text-xs uppercase tracking-widest text-surface-500">Risk Score</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-surface-500">Danger Score</p>
             <p className="text-3xl font-bold" style={{ color }}>{village.risk_score}<span className="text-base text-surface-500">/100</span></p>
           </div>
           <div className="text-right">
@@ -73,8 +73,8 @@ export default function VillagePanel({ village, onFindSafeZone, isLoadingRecomme
           <p>
             <strong className="text-white">ACTION:</strong>{' '}
             {village.relocation_required
-              ? `Immediate relocation assessment for ${fmtNumber(village.people_requiring_relocation)} residents`
-              : 'Continue routine monitoring — no relocation trigger at current risk level'}
+              ? `Immediate evacuation check for ${fmtNumber(village.people_requiring_relocation)} residents`
+              : 'Continue watching — no evacuation needed at current danger level'}
           </p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function VillagePanel({ village, onFindSafeZone, isLoadingRecomme
           className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-golden to-amber-500 px-5 py-3 font-semibold text-surface-950 transition hover:brightness-110 disabled:opacity-60 shadow-lg shadow-golden/20 text-base"
         >
           <Compass size={18} />
-          {isLoadingRecommendation ? 'Finding best safe zone…' : 'Find Best Safe Zone'}
+          {isLoadingRecommendation ? 'Finding best shelter…' : 'Find Best Shelter'}
         </button>
       )}
     </div>

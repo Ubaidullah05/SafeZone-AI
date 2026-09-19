@@ -4,7 +4,7 @@ import type { SafeZoneResult } from '../types'
 
 export default function ShelterPanel({ safeZones }: { safeZones: SafeZoneResult[] }) {
   if (!safeZones?.length) {
-    return <p className="text-sm text-surface-500">No safe zone data available.</p>
+    return <p className="text-sm text-surface-500">No shelter data available.</p>
   }
 
   return (

@@ -8,7 +8,7 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
   const { user, logout } = useAuth()
   const [showProfile, setShowProfile] = useState(false)
 
-  const displayName = user?.name || 'Authority User'
+  const displayName = user?.name || 'User'
   const displayEmail = user?.email || ''
   const role = user?.role || ''
 
@@ -21,7 +21,7 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
         </div>
         <div className="hidden sm:block">
           <h1 className="font-display text-base font-bold text-primary">SafeLink<span className="text-golden">-AI</span></h1>
-          <p className="font-mono text-2xs text-muted">Authority control room · decision support</p>
+          <p className="font-mono text-2xs text-muted">District safety board</p>
         </div>
       </div>
 
@@ -29,12 +29,12 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
       <div className="flex items-center gap-4">
         {isDemoMode && (
           <span className="rounded-full border border-golden/20 bg-golden/10 px-3 py-1 font-mono text-2xs font-medium text-golden">
-            ⚡ OFFLINE FALLBACK
+            ⚡ OFFLINE MODE
           </span>
         )}
         <div className="flex items-center gap-2 rounded-full border border-danger/20 bg-danger/10 px-3 py-1">
           <Bell size={13} className="text-danger animate-urgency-pulse" />
-          <span className="font-mono text-xs font-semibold text-danger">{sosActiveCount} Active</span>
+          <span className="font-mono text-xs font-semibold text-danger">{sosActiveCount} Live alerts</span>
         </div>
       </div>
 
@@ -43,7 +43,7 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
         <button
           onClick={toggleTheme}
           className="flex h-9 w-9 items-center justify-center rounded-xl border border-theme bg-panel text-muted transition-all duration-300 hover:text-golden hover:border-golden/30 hover:bg-golden/5"
-          title={isDay ? 'Switch to Night Mode' : 'Switch to Day Mode'}
+          title={isDay ? 'Dark mode' : 'Light mode'}
         >
           <div className="relative h-5 w-5">
             <Sun size={18} className={`absolute inset-0 transition-all duration-500 ${isDay ? 'rotate-0 scale-100 opacity-100 text-golden' : 'rotate-90 scale-0 opacity-0'}`} />
@@ -71,7 +71,7 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
                 onClick={() => { setShowProfile(false); void logout() }}
                 className="w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger/10 transition"
               >
-                Sign Out
+                Logout
               </button>
             </div>
           )}

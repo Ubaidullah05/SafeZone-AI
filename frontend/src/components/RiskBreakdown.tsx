@@ -1,12 +1,12 @@
 import type { RiskBreakdown as RiskBreakdownData } from '../types'
 
 const FACTORS: { key: keyof RiskBreakdownData; label: string }[] = [
-  { key: 'hazard_severity', label: 'Hazard Severity' },
+  { key: 'hazard_severity', label: 'Danger Level' },
   { key: 'slope_risk', label: 'Slope / Elevation' },
-  { key: 'population_exposure', label: 'Population Exposure' },
-  { key: 'accessibility_risk', label: 'Accessibility Risk' },
-  { key: 'facility_access_risk', label: 'Facility Access Risk' },
-  { key: 'historical_event_risk', label: 'Historical Event Risk' },
+  { key: 'population_exposure', label: 'People in Danger' },
+  { key: 'accessibility_risk', label: 'Road Access' },
+  { key: 'facility_access_risk', label: 'Facility Access' },
+  { key: 'historical_event_risk', label: 'Past Disasters' },
 ]
 
 function barColor(value: number): string {
@@ -19,7 +19,7 @@ function barColor(value: number): string {
 export default function RiskBreakdown({ breakdown }: { breakdown: RiskBreakdownData | null | undefined }) {
   return (
     <div className="space-y-3">
-      <p className="font-mono text-xs uppercase tracking-widest text-surface-500">Risk Contributors</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-surface-500">What makes it risky</p>
       {FACTORS.map(({ key, label }) => {
         const value = breakdown?.[key] ?? 0
         return (

@@ -99,7 +99,7 @@ export default function Dashboard({
       {!isOnline && (
         <div className="flex items-center justify-center gap-2 border-b border-gold-400/15 bg-gold-400/8 px-6 py-2.5 animate-fade-in-down">
           <WifiOff size={15} className="text-gold-400" />
-          <span className="text-sm font-medium text-gold-300">You are offline — showing cached data. SOS will sync when reconnected.</span>
+          <span className="text-sm font-medium text-gold-300">You are offline — showing saved data. Emergencies will sync when reconnected.</span>
         </div>
       )}
       <div className="flex min-h-0 flex-1">
@@ -107,12 +107,12 @@ export default function Dashboard({
         <main className="flex min-h-0 flex-1 flex-col">
           {activeTab === 'risk' && (
             <div className="grid grid-cols-2 gap-4 p-5 pb-0 sm:grid-cols-3 lg:grid-cols-6">
-              <KpiCard icon={Building2} label="Habitations" value={riskSummary.total_habitations} accent="var(--surface-400)" delay={0} />
+              <KpiCard icon={Building2} label="Villages" value={riskSummary.total_habitations} accent="var(--surface-400)" delay={0} />
               <KpiCard icon={AlertOctagon} label="High / Critical" value={riskSummary.high_or_critical} accent="#FB923C" delay={50} />
-              <KpiCard icon={TriangleAlert} label="Pop. at Risk" value={fmtNumber(riskSummary.population_at_risk)} accent="#F43F5E" delay={100} />
-              <KpiCard icon={MoveRight} label="Relocation" value={fmtNumber(riskSummary.relocation_required_population)} accent="#FBBF24" delay={150} />
-              <KpiCard icon={Home} label="Safe Capacity" value={fmtNumber(riskSummary.available_safe_capacity)} accent="#34D399" delay={200} />
-              <KpiCard icon={Users} label="Capacity Gap" value={fmtNumber(riskSummary.capacity_gap)} accent="#F43F5E" delay={250} />
+              <KpiCard icon={TriangleAlert} label="People in Danger" value={fmtNumber(riskSummary.population_at_risk)} accent="#F43F5E" delay={100} />
+              <KpiCard icon={MoveRight} label="To Evacuate" value={fmtNumber(riskSummary.relocation_required_population)} accent="#FBBF24" delay={150} />
+              <KpiCard icon={Home} label="Shelter Space" value={fmtNumber(riskSummary.available_safe_capacity)} accent="#34D399" delay={200} />
+              <KpiCard icon={Users} label="Shelter Shortage" value={fmtNumber(riskSummary.capacity_gap)} accent="#F43F5E" delay={250} />
             </div>
           )}
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -128,7 +128,7 @@ export default function Dashboard({
           </div>
           <div className="border-t border-theme px-6 py-3 text-center">
             <div className="flex items-center justify-center gap-5">
-              <p className="font-mono text-xs text-muted">SafeLink-AI — Analytical decision support. Final evacuation decisions by authorized officials.</p>
+              <p className="font-mono text-xs text-muted">SafeLink-AI — Safety help. Evacuation decided by officials.</p>
               <div className="flex items-center gap-2">
                 {wsConnected ? <><div className="h-2 w-2 rounded-full bg-safe animate-pulse" /><span className="font-mono text-xs text-safe font-medium">LIVE</span></> : <><div className="h-2 w-2 rounded-full bg-gold-400" /><span className="font-mono text-xs text-gold-400">OFFLINE</span></>}
               </div>
@@ -158,7 +158,7 @@ function RiskMapTab({ villages, safeZones, selectedVillageId, onSelectVillage, s
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[300px_1fr_380px]">
       <div className="flex min-h-0 flex-col rounded-2xl border border-theme bg-bg-card p-4 shadow-card">
-        <input value={search} onChange={(e) => onSearch(e.target.value)} placeholder="Search habitations…" className="mb-3 rounded-xl border border-theme bg-input px-4 py-2.5 text-sm text-primary outline-none placeholder:text-muted focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+        <input value={search} onChange={(e) => onSearch(e.target.value)} placeholder="Search villages…" className="mb-3 rounded-xl border border-theme bg-input px-4 py-2.5 text-sm text-primary outline-none placeholder:text-muted focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition-all" />
         <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
           {villages.map((v) => {
             const sel = v.id === selectedVillageId

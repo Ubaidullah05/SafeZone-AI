@@ -79,7 +79,7 @@ export default function PublicView() {
             </div>
             <div>
               <span className="font-display text-sm font-bold">SafeLink<span className="text-golden">-AI</span></span>
-              <span className="ml-2 hidden font-mono text-2xs uppercase tracking-widest text-muted sm:inline">Public Evacuation Portal</span>
+              <span className="ml-2 hidden font-mono text-2xs uppercase tracking-widest text-muted sm:inline">Public Safety Page</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export default function PublicView() {
               to="/login"
               className="flex items-center gap-1.5 rounded-xl border border-theme bg-panel px-3.5 py-2 text-xs font-medium text-muted transition hover:border-violet-500/30 hover:text-white"
             >
-              <Lock size={12} /> Authority Login
+              <Lock size={12} /> Official Login
             </Link>
           </div>
         </div>
@@ -105,14 +105,14 @@ export default function PublicView() {
           <div className="relative grid items-center gap-8 md:grid-cols-2">
             <div>
               <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-danger/20 bg-danger/10 px-3 py-1 font-mono text-2xs uppercase tracking-widest text-danger">
-                <Siren size={12} /> Emergency advisory active
+                <Siren size={12} /> Emergency alert active
               </p>
               <h1 className="font-display text-3xl font-bold leading-tight md:text-4xl">
-                Know the risk. <span className="text-golden">Reach safety faster.</span>
+                Know the danger. <span className="text-golden">Reach safety faster.</span>
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-muted md:text-base">
-                Live risk zones, shelter capacity, and one-tap SOS alerting for every habitation.
-                The map below is read-only; authorities handle every SOS report directly.
+                Live danger zones, shelter capacity, and one-tap emergency alerting for every village.
+                The map below is read-only; authorities handle every emergency report directly.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
@@ -125,7 +125,7 @@ export default function PublicView() {
                   href="#map"
                   className="flex items-center gap-2 rounded-xl border border-theme bg-panel px-6 py-3 text-sm font-medium text-muted transition hover:border-violet-500/30 hover:text-white"
                 >
-                  <MapPin size={15} /> View Risk Map
+                  <MapPin size={15} /> View Danger Map
                 </a>
               </div>
             </div>
@@ -133,22 +133,22 @@ export default function PublicView() {
             {/* Live stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-theme bg-panel p-4">
-                <p className="font-mono text-2xs uppercase tracking-widest text-muted">High-risk zones</p>
+                <p className="font-mono text-2xs uppercase tracking-widest text-muted">High-danger zones</p>
                 <p className="mt-1 text-3xl font-bold text-danger">{criticalCount}</p>
-                <p className="text-xs text-muted">of {villages.length} habitations</p>
+                <p className="text-xs text-muted">of {villages.length} villages</p>
               </div>
               <div className="rounded-2xl border border-theme bg-panel p-4">
                 <p className="font-mono text-2xs uppercase tracking-widest text-muted">Shelter capacity</p>
                 <p className="mt-1 text-3xl font-bold text-violet-300">{totalCapacity.toLocaleString()}</p>
-                <p className="text-xs text-muted">across {safeZones.length} safe zones</p>
+                <p className="text-xs text-muted">across {safeZones.length} shelters</p>
               </div>
               <div className="rounded-2xl border border-theme bg-panel p-4">
-                <p className="font-mono text-2xs uppercase tracking-widest text-muted">Active SOS reports</p>
+                <p className="font-mono text-2xs uppercase tracking-widest text-muted">Active emergency reports</p>
                 <p className="mt-1 text-3xl font-bold text-golden">{latest.length}</p>
-                <p className="text-xs text-muted">awaiting authority action</p>
+                <p className="text-xs text-muted">awaiting official action</p>
               </div>
               <div className="rounded-2xl border border-theme bg-panel p-4">
-                <p className="font-mono text-2xs uppercase tracking-widest text-muted">Model confidence</p>
+                <p className="font-mono text-2xs uppercase tracking-widest text-muted">System accuracy</p>
                 <p className="mt-1 text-3xl font-bold text-emerald-400">
                   {learning ? `${Math.round((learning.confidence || 0) * 100)}%` : '—'}
                 </p>
@@ -164,8 +164,8 @@ export default function PublicView() {
         <section id="map" className="mt-8">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-xl font-bold">Habitation Risk Map</h2>
-              <p className="text-xs text-muted">Colour = composite risk score; violet pins = designated safe zones.</p>
+              <h2 className="font-display text-xl font-bold">Village Danger Map</h2>
+              <p className="text-xs text-muted">Colour = danger score; violet pins = shelters.</p>
             </div>
           </div>
           <div className="h-[480px]">
@@ -205,10 +205,10 @@ export default function PublicView() {
           <div className="rounded-2xl border border-theme bg-sidebar p-5">
             <div className="mb-3 flex items-center gap-2">
               <Radio size={15} className="text-danger" />
-              <h3 className="font-display text-sm font-bold">Latest SOS activity</h3>
+                <h3 className="font-display text-sm font-bold">Latest emergency activity</h3>
             </div>
             {latest.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">No active SOS reports right now. Stay safe.</p>
+              <p className="py-6 text-center text-sm text-muted">No active emergency reports right now. Stay safe.</p>
             ) : (
               <ul className="space-y-2">
                 {latest.slice(0, 6).map((r) => (
@@ -234,7 +234,7 @@ export default function PublicView() {
           <h3 className="mb-4 font-display text-lg font-bold">If an evacuation order is issued</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ['📍 Know your safe zone', 'Check the map for the nearest designated shelter and plan your route now.'],
+              ['📍 Know your shelter', 'Check the map for the nearest shelter and plan your route now.'],
               ['📦 Carry essentials', 'Water, medicine, documents, warm clothing, phone, and a power bank.'],
               ['🚶 Move early', 'Follow evacuation announcements. Do not wait for a rescue request.'],
               ['📡 One-tap SOS', 'If you are trapped or injured, use the SOS button. Toggle mobile data if a message fails.'],
@@ -250,7 +250,7 @@ export default function PublicView() {
 
       <footer className="border-t border-theme py-6 text-center">
         <p className="font-mono text-2xs text-muted">
-          SafeLink-AI · SIH 26191 · Decision support — recommendations are reviewed by the district authority before action.
+          SafeLink-AI · SIH 26191 · Safety help — recommendations are reviewed by the district authority before action.
         </p>
       </footer>
 

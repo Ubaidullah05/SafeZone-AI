@@ -37,13 +37,13 @@ export default function OperationalPriorityTable({ onSelectVillage }: Operationa
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-primary">📊 Relocation & Priority</h2>
-        <p className="text-sm text-surface-400 mt-1">Village-level relocation recommendations and operational priority</p>
+        <h2 className="text-xl font-bold text-primary">📊 Who Should Move & When</h2>
+        <p className="text-sm text-surface-400 mt-1">Village-level evacuation plan and priority order</p>
       </div>
 
       <div className="rounded-2xl bg-panel border border-theme overflow-hidden">
         {recommendations.length === 0 ? (
-          <p className="py-12 text-center text-sm text-surface-400">No relocation-priority data available.</p>
+          <p className="py-12 text-center text-sm text-surface-400">No evacuation data available.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -52,9 +52,9 @@ export default function OperationalPriorityTable({ onSelectVillage }: Operationa
                   <th className="text-left py-4 px-5 text-surface-400 font-medium">Priority</th>
                   <th className="text-left py-4 px-5 text-surface-400 font-medium">Village</th>
                   <th className="text-left py-4 px-5 text-surface-400 font-medium">Population</th>
-                  <th className="text-left py-4 px-5 text-surface-400 font-medium">Risk Score</th>
-                  <th className="text-left py-4 px-5 text-surface-400 font-medium">Recommended</th>
-                  <th className="text-left py-4 px-5 text-surface-400 font-medium">To Relocate</th>
+                  <th className="text-left py-4 px-5 text-surface-400 font-medium">Danger Score</th>
+                  <th className="text-left py-4 px-5 text-surface-400 font-medium">Shelter</th>
+                  <th className="text-left py-4 px-5 text-surface-400 font-medium">People to Move</th>
                 </tr>
               </thead>
               <tbody>

@@ -53,7 +53,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
     <div className="flex h-full flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin">
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-mono text-xs uppercase tracking-widest text-surface-500">What-If Disaster Scenario</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-surface-500">What If Things Change</p>
           <button
             onClick={() => setParams(DEMO_SCENARIO)}
             className="font-mono text-xs uppercase tracking-wide text-golden hover:text-amber-400 transition-colors"
@@ -63,10 +63,10 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
         </div>
 
         <div className="space-y-4 rounded-2xl border border-theme bg-panel p-4">
-          <Slider label="Hazard Severity" value={params.hazard_severity_delta_pct} min={-50} max={100} onChange={update('hazard_severity_delta_pct')} />
-          <Slider label="Rainfall / Event Intensity" value={params.rainfall_intensity_delta_pct} min={-50} max={100} onChange={update('rainfall_intensity_delta_pct')} />
-          <Slider label="Population Exposure" value={params.population_exposure_delta_pct} min={-50} max={100} onChange={update('population_exposure_delta_pct')} />
-          <Slider label="Road Accessibility" value={params.road_accessibility_delta_pct} min={-50} max={50} onChange={update('road_accessibility_delta_pct')} />
+          <Slider label="Danger Level" value={params.hazard_severity_delta_pct} min={-50} max={100} onChange={update('hazard_severity_delta_pct')} />
+          <Slider label="Rainfall / Event Strength" value={params.rainfall_intensity_delta_pct} min={-50} max={100} onChange={update('rainfall_intensity_delta_pct')} />
+          <Slider label="People in Danger" value={params.population_exposure_delta_pct} min={-50} max={100} onChange={update('population_exposure_delta_pct')} />
+          <Slider label="Road Access" value={params.road_accessibility_delta_pct} min={-50} max={50} onChange={update('road_accessibility_delta_pct')} />
 
           <div className="flex items-center justify-between pt-1">
             <span className="text-sm text-surface-400">Road Closure</span>
@@ -88,7 +88,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-5 py-3 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 shadow-lg shadow-red-500/20 text-base"
           >
             <Zap size={18} />
-            {isRunning ? 'Running…' : 'Run Scenario'}
+            {isRunning ? 'Running…' : 'See What Happens'}
           </button>
           <button
             onClick={() => {
@@ -105,23 +105,23 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
 
       {comparison && (
         <div className="rounded-2xl border border-theme bg-panel p-4">
-          <p className="mb-3 font-mono text-xs uppercase tracking-widest text-surface-500">Before → After</p>
+          <p className="mb-3 font-mono text-xs uppercase tracking-widest text-surface-500">Before vs After</p>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="mb-1 text-surface-400">Before Scenario</p>
+              <p className="mb-1 text-surface-400">Before Change</p>
               <p className="text-surface-400">High Risk: <strong className="text-amber-400">{comparison.before_high_risk}</strong></p>
               <p className="text-surface-400">Critical: <strong className="text-red-400">{comparison.before_critical}</strong></p>
-              <p className="text-surface-400">Pop. at Risk: <strong className="text-white">{fmtNumber(comparison.before_population_at_risk)}</strong></p>
+              <p className="text-surface-400">People in Danger: <strong className="text-white">{fmtNumber(comparison.before_population_at_risk)}</strong></p>
             </div>
             <div>
-              <p className="mb-1 text-surface-400">After Scenario</p>
+              <p className="mb-1 text-surface-400">After Change</p>
               <p className="text-surface-400">High Risk: <strong className="text-amber-400">{comparison.after_high_risk}</strong></p>
               <p className="text-surface-400">Critical: <strong className="text-red-400">{comparison.after_critical}</strong></p>
-              <p className="text-surface-400">Pop. at Risk: <strong className="text-white">{fmtNumber(comparison.after_population_at_risk)}</strong></p>
+              <p className="text-surface-400">People in Danger: <strong className="text-white">{fmtNumber(comparison.after_population_at_risk)}</strong></p>
             </div>
           </div>
           <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center">
-            <p className="font-mono text-xs uppercase tracking-widest text-red-400">Additional Population At Risk</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-red-400">Extra People In Danger</p>
             <p className="text-2xl font-bold text-red-400">{fmtSigned(comparison.additional_population_at_risk)}</p>
           </div>
         </div>

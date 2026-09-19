@@ -37,9 +37,9 @@ export default function SOSPanel({ onShowForm }: { onShowForm: () => void }) {
       <div className="flex items-center gap-3 animate-fade-in">
         <div className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium border ${wsConnected ? 'bg-safe/10 text-safe border-safe/20' : 'bg-gold-400/10 text-gold-400 border-gold-400/20'}`}>
           {wsConnected ? <Wifi size={13} /> : <WifiOff size={13} />}
-          {wsConnected ? 'Live — Real-time Alerts' : 'Polling — Auto-refresh'}
+          {wsConnected ? 'Live — Real-time Alerts' : 'Auto-refreshing'}
         </div>
-        {newFlash && <span className="animate-notification-in rounded-xl bg-danger/10 border border-danger/20 px-4 py-2 text-sm font-medium text-danger-light">🚨 New SOS received!</span>}
+        {newFlash && <span className="animate-notification-in rounded-xl bg-danger/10 border border-danger/20 px-4 py-2 text-sm font-medium text-danger-light">🚨 New emergency call received!</span>}
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
@@ -67,7 +67,7 @@ export default function SOSPanel({ onShowForm }: { onShowForm: () => void }) {
         </div>
         <div className="flex gap-3">
           <button onClick={loadData} className="flex items-center gap-2 rounded-xl border border-theme bg-bg-card px-4 py-2.5 text-sm font-medium text-violet-300/60 transition hover:bg-violet-500/5 hover:text-white"><RefreshCw size={13} /> Refresh</button>
-          <button onClick={onShowForm} className="flex items-center gap-2 rounded-xl bg-danger px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-danger-light hover:shadow-glow-r active:scale-[0.98]">🚨 Submit SOS</button>
+          <button onClick={onShowForm} className="flex items-center gap-2 rounded-xl bg-danger px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-danger-light hover:shadow-glow-r active:scale-[0.98]">🚨 Submit Emergency Call</button>
         </div>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_420px]">
@@ -78,7 +78,7 @@ export default function SOSPanel({ onShowForm }: { onShowForm: () => void }) {
         </div>
         <div className="hidden lg:block">
           {selected ? <Detail r={selected} onUpdate={handleStatusUpdate} onClose={() => setSelected(null)} />
-          : <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-theme bg-bg-card/50 p-8 text-center text-violet-300/30"><Filter size={28} /><p className="mt-3 text-base">Select a report</p></div>}
+          : <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-theme bg-bg-card/50 p-8 text-center text-violet-300/30"><Filter size={28} /><p className="mt-3 text-base">Select a report to view details</p></div>}
         </div>
       </div>
     </div>
@@ -166,7 +166,7 @@ function Detail({ r, onUpdate, onClose }: { r: SOSReport; onUpdate: (id: string,
         {adjudicating && !adjDone && (
           <div className="space-y-3 rounded-xl border border-theme bg-bg-light p-4">
             <p className="font-mono text-xs uppercase tracking-widest text-violet-300/60">
-              Confirm outcome — this feeds the learning engine
+              Confirm outcome — this helps improve the system
             </p>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-xs text-violet-200/50">Actual severity
@@ -193,7 +193,7 @@ function Detail({ r, onUpdate, onClose }: { r: SOSReport; onUpdate: (id: string,
         )}
         {adjDone && (
           <p className="rounded-xl border border-safe/20 bg-safe/5 py-3 text-center text-sm text-safe">
-            Recorded as {adj.outcome}. Learning weights updated with this observation.
+            Recorded as {adj.outcome}. The system has learned from this report.
           </p>
         )}
       </div>}

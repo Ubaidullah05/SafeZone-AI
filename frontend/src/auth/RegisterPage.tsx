@@ -36,8 +36,8 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen flex-col bg-base-950 text-white">
       <header className="flex items-center justify-between border-b border-theme bg-header/80 px-5 py-3 backdrop-blur-xl">
-        <Link to="/" className="flex items-center gap-2 text-muted transition hover:text-white">
-          <ArrowLeft size={15} /> Back to public portal
+          <Link to="/" className="flex items-center gap-2 text-muted transition hover:text-white">
+          <ArrowLeft size={15} /> Back to public page
         </Link>
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-golden shadow-glow-v">
@@ -50,7 +50,7 @@ export default function RegisterPage() {
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <div className="mb-6 text-center">
-            <h1 className="font-display text-2xl font-bold">Create Official Account</h1>
+            <h1 className="font-display text-2xl font-bold">Create Account</h1>
             <p className="mt-1 text-sm text-muted">New officials are created by an existing admin.</p>
           </div>
 
@@ -59,7 +59,7 @@ export default function RegisterPage() {
               <ShieldAlert size={17} className="mt-0.5 shrink-0 text-golden" />
               <p>
                 Registration is restricted to admins. Sign in as an admin, then visit the
-                <Link to="/authority" className="ml-1 font-semibold text-white underline decoration-golden/40 underline-offset-2 hover:text-golden">control room &rarr; Accounts</Link>
+                <Link to="/authority" className="ml-1 font-semibold text-white underline decoration-golden/40 underline-offset-2 hover:text-golden">dashboard &rarr; People</Link>
                 to add officials.
               </p>
             </div>
@@ -154,7 +154,7 @@ export default function RegisterPage() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 py-3 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-all hover:from-violet-500 hover:to-violet-400 disabled:opacity-60"
                 >
                   {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <UserPlus size={15} />}
-                  {loading ? 'Creating account…' : 'Create Official Account'}
+                  {loading ? 'Creating account…' : 'Create Account'}
                 </button>
               </form>
 
