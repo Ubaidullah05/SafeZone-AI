@@ -9,7 +9,6 @@
  * Backend target overridable via BACKEND_URL (default http://127.0.0.1:8000).
  */
 const { createServer } = require('node:http')
-const { parse } = require('node:url')
 const httpProxy = require('http-proxy')
 const next = require('next')
 
