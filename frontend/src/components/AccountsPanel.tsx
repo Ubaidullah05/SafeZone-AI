@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { UserPlus, RefreshCw, ShieldCheck } from 'lucide-react'
 import * as api from '../services/api'

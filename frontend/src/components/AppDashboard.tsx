@@ -1,5 +1,3 @@
-'use client'
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Dashboard from './Dashboard'
 import * as api from '../services/api'

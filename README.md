@@ -24,7 +24,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Runs at **http://127.0.0.1:3000**. `server.js` proxies `/api` and `/ws` to the backend automatically — override with `BACKEND_URL=http://other-host:port npm run dev`.
+Runs at **http://127.0.0.1:3000**. Vite proxies `/api` and `/ws` to the backend automatically (see `vite.config.ts`). Override with `BACKEND_URL=http://other-host:port npm run dev`. The frontend can also point directly at the API by setting `VITE_API_URL` in `frontend/.env` (see `.env.example`).
 
 ### 3. Verify the connection
 ```bash
@@ -70,7 +70,7 @@ backend\.venv\Scripts\python.exe -m pytest tests -q
 
 ## Tech stack
 
-**Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, React-Leaflet 5, Framer Motion, Lucide React, Axios, `idb` (IndexedDB), PWA service worker.
+**Frontend:** Vite, React 19, TypeScript, Tailwind CSS, React-Leaflet 5, Framer Motion, Lucide React, Axios, `react-router-dom`, `idb` (IndexedDB), PWA service worker.
 
 **Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, SQLite (`sqlite3` stdlib), WebSockets.
 
@@ -85,7 +85,8 @@ backend\.venv\Scripts\python.exe -m pytest tests -q
 | `SAFEZONE_SKIP_SEED` | Backend | Skip demo user seeding | unset |
 | `BACKEND_URL` | Frontend | Proxy target | `http://127.0.0.1:8000` |
 | `PORT` | Frontend | App port | `3000` |
-| `NEXT_PUBLIC_API_URL` | Frontend | Direct API override (bypasses proxy) | `''` |
+| `VITE_API_URL` | Frontend | Direct API override (bypasses Vite proxy) | `''` |
+| `NEXT_PUBLIC_API_URL` | Frontend | Deprecated — use `VITE_API_URL` | `''` |
 
 ## Assumptions & known limitations
 

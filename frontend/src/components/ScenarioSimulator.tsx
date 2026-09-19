@@ -1,5 +1,3 @@
-'use client'
-
 import { useState } from 'react'
 import { Zap, RotateCcw } from 'lucide-react'
 import { fmtNumber, fmtSigned } from '../utils'

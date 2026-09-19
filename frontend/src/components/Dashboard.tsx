@@ -1,8 +1,5 @@
-'use client'
-
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import { Building2, TriangleAlert, Users, MoveRight, Home, AlertOctagon, WifiOff, type LucideIcon } from 'lucide-react'
-import dynamic from 'next/dynamic'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import AlertBanner from './AlertBanner'
@@ -30,14 +27,7 @@ import type {
   VillageResult,
 } from '../types'
 
-const RiskMap = dynamic(() => import('./RiskMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl border border-theme bg-panel">
-      <div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-    </div>
-  ),
-})
+const RiskMap = lazy(() => import('./RiskMap'))
 
 function KpiCard({ icon: Icon, label, value, accent, delay = 0 }: { icon: LucideIcon; label: string; value: string | number; accent: string; delay?: number }) {
   return (
@@ -185,7 +175,7 @@ function RiskMapTab({ villages, safeZones, selectedVillageId, onSelectVillage, s
         </div>
       </div>
       <div className="flex min-h-0 flex-col gap-5">
-        <div className="min-h-[340px] flex-[1.3]"><RiskMap villages={villages} safeZones={safeZones} selectedVillageId={selectedVillageId} onSelectVillage={onSelectVillage} /></div>
+        <div className="min-h-[340px] flex-[1.3]"><Suspense fallback={<div className="flex h-full w-full items-center justify-center rounded-2xl border border-theme bg-panel"><div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" /></div>}><RiskMap villages={villages} safeZones={safeZones} selectedVillageId={selectedVillageId} onSelectVillage={onSelectVillage} /></Suspense></div>
         <div className="min-h-[280px] flex-1 overflow-hidden rounded-2xl border border-theme bg-bg-card p-5 shadow-card"><VillagePanel village={selectedVillage} onFindSafeZone={onFindSafeZone} isLoadingRecommendation={isLoadingRecommendation} /></div>
       </div>
       <div className="flex min-h-0 flex-col rounded-2xl border border-theme bg-bg-card p-5 shadow-card overflow-y-auto">

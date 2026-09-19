@@ -1,22 +1,13 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { Shield, MapPin, Radio, Siren, BatteryCharging, Layers, Lock } from 'lucide-react'
-import Link from 'next/link'
-import dynamic from 'next/dynamic'
+import { Link } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import SOSReportForm from './SOSReportForm'
 import * as api from '../services/api'
 import { RAW_VILLAGES, RAW_SAFE_ZONES, runPipeline } from '../data/fallbackData'
 import type { BacktestResponse, LearningState, SafeZoneResult, SOSLatestItem, VillageResult } from '../types'
 
-const RiskMap = dynamic(() => import('./RiskMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl border border-theme bg-panel">
-      <div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-    </div>
-  ),
-})
+const RiskMap = lazy(() => import('./RiskMap'))
 
 const SEVERITY_PILL: Record<number, string> = {
   1: 'bg-emerald-500/10 text-emerald-400',
@@ -98,7 +89,7 @@ export default function PublicView() {
               </span>
             )}
             <Link
-              href="/login"
+              to="/login"
               className="flex items-center gap-1.5 rounded-xl border border-theme bg-panel px-3.5 py-2 text-xs font-medium text-muted transition hover:border-violet-500/30 hover:text-white"
             >
               <Lock size={12} /> Authority Login
@@ -178,12 +169,7 @@ export default function PublicView() {
             </div>
           </div>
           <div className="h-[480px]">
-            <RiskMap
-              villages={villages}
-              safeZones={safeZones}
-              selectedVillageId={null}
-              onSelectVillage={() => {}}
-            />
+            <Suspense fallback={<div className="flex h-full w-full items-center justify-center rounded-2xl border border-theme bg-panel"><div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" /></div>}><RiskMap villages={villages} safeZones={safeZones} selectedVillageId={null} onSelectVillage={() => {}} /></Suspense>
           </div>
         </section>
 

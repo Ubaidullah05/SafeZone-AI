@@ -1,5 +1,3 @@
-'use client'
-
 import { MapContainer, TileLayer, CircleMarker, Circle, Popup, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import RiskLegend from './RiskLegend'

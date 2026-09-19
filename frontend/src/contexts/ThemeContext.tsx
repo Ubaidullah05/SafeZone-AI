@@ -1,5 +1,3 @@
-'use client'
-
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 
 type ThemeMode = 'day' | 'night'

@@ -1,13 +1,11 @@
-'use client'
-
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Shield, Mail, KeyRound, Lock, ArrowLeft, Eye, EyeOff, Fingerprint } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
 export default function LoginPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { user, login, pinLogin, authError, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,8 +15,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    if (user) router.replace('/authority')
-  }, [user, router])
+    if (user) navigate('/authority', { replace: true })
+  }, [user, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -28,7 +26,7 @@ export default function LoginPage() {
       } else {
         await login(email.trim(), password)
       }
-      router.replace('/authority')
+      navigate('/authority', { replace: true })
     } catch {
       // error message is set inside AuthContext
     }
@@ -37,7 +35,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-base-950 text-white">
       <header className="flex items-center justify-between border-b border-theme bg-header/80 px-5 py-3 backdrop-blur-xl">
-        <Link href="/" className="flex items-center gap-2 text-muted transition hover:text-white">
+        <Link to="/" className="flex items-center gap-2 text-muted transition hover:text-white">
           <ArrowLeft size={15} /> Back to public portal
         </Link>
         <div className="flex items-center gap-2">

@@ -1,13 +1,11 @@
-'use client'
-
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Shield, Mail, KeyRound, Lock, ArrowLeft, UserPlus, Eye, EyeOff, Fingerprint, ShieldAlert } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
 export default function RegisterPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { user, register, authError, loading } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
   const [name, setName] = useState('')
@@ -20,10 +18,10 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (submitted) {
-      const t = setTimeout(() => router.replace('/login'), 1600)
+      const t = setTimeout(() => navigate('/login', { replace: true }), 1600)
       return () => clearTimeout(t)
     }
-  }, [submitted, router])
+  }, [submitted, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,7 +36,7 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen flex-col bg-base-950 text-white">
       <header className="flex items-center justify-between border-b border-theme bg-header/80 px-5 py-3 backdrop-blur-xl">
-        <Link href="/" className="flex items-center gap-2 text-muted transition hover:text-white">
+        <Link to="/" className="flex items-center gap-2 text-muted transition hover:text-white">
           <ArrowLeft size={15} /> Back to public portal
         </Link>
         <div className="flex items-center gap-2">
@@ -61,7 +59,7 @@ export default function RegisterPage() {
               <ShieldAlert size={17} className="mt-0.5 shrink-0 text-golden" />
               <p>
                 Registration is restricted to admins. Sign in as an admin, then visit the
-                <Link href="/authority" className="ml-1 font-semibold text-white underline decoration-golden/40 underline-offset-2 hover:text-golden">control room &rarr; Accounts</Link>
+                <Link to="/authority" className="ml-1 font-semibold text-white underline decoration-golden/40 underline-offset-2 hover:text-golden">control room &rarr; Accounts</Link>
                 to add officials.
               </p>
             </div>
@@ -162,7 +160,7 @@ export default function RegisterPage() {
 
               <p className="mt-4 text-center text-xs text-muted">
                 Already registered?{' '}
-                <Link href="/login" className="font-medium text-violet-300 hover:text-violet-200">Sign in</Link>
+                <Link to="/login" className="font-medium text-violet-300 hover:text-violet-200">Sign in</Link>
               </p>
             </div>
           )}

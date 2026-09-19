@@ -1,5 +1,3 @@
-'use client'
-
 import { Bell, Moon, Sun, User, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'

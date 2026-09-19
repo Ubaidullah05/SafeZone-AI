@@ -1,5 +1,3 @@
-'use client'
-
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import * as api from '../services/api'
 import { getCachedSession, cacheSession, clearSession } from '../services/offlineCache'

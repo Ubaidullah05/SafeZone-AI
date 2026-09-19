@@ -1,5 +1,3 @@
-'use client'
-
 import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 

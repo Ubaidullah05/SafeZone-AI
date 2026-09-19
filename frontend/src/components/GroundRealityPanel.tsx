@@ -1,5 +1,3 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fetchGroundReality, fetchOperationalPriority } from '../services/api'

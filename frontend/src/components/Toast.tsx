@@ -1,5 +1,3 @@
-'use client'
-
 import { useState, useEffect, useCallback, createContext, useContext, useRef, type ReactNode } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import type { SosAlert } from '../hooks/useWebSocket'

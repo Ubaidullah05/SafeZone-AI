@@ -1,5 +1,3 @@
-'use client'
-
 import { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, Clock, Activity, Heart, Filter, RefreshCw, Phone, MapPin, Users, Wifi, WifiOff } from 'lucide-react'
 import * as api from '../services/api'

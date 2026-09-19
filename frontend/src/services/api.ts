@@ -34,10 +34,9 @@ import type {
   Role,
 } from '../types'
 
-// Relative URLs so the Next.js custom server can proxy /api and /ws to the
-// FastAPI backend behind a single origin. Override in production with
-// NEXT_PUBLIC_API_URL.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+// Backend proxy target (Vite dev server proxies /api and /ws automatically).
+// Override with VITE_API_URL env var for production.
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 export const client = axios.create({
   baseURL: API_BASE_URL,

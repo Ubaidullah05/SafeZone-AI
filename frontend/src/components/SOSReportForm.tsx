@@ -1,5 +1,3 @@
-'use client'
-
 import { useState } from 'react'
 import { AlertTriangle, MapPin, Users, Heart, Send, X } from 'lucide-react'
 import * as api from '../services/api'
