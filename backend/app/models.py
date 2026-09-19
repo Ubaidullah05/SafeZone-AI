@@ -1,23 +1,30 @@
 """
 Pydantic data models shared across the SafeLink - AI backend.
 
-These models define the shape of raw input data (villages / safe zones)
-and the shape of calculated results returned by the various engines.
+These models define the shape of raw input data (villages / safe zones),
+auth/authority flows, SOS reports, adjudications, and the advisory output of
+the reasoning engine. The simulated mesh-network models have been removed.
 """
 
 from typing import Optional
 from pydantic import BaseModel, Field
 
+from .roles import Role
+
 
 # ---------------------------------------------------------------------------
-# Auth models
+# Auth / authority models
 # ---------------------------------------------------------------------------
 
 class UserRegister(BaseModel):
+    """Authority account creation. The caller must be an ADMIN; the requested
+    role is validated server-side and never trusted blindly."""
     name: str
     email: str
-    password: str
-    role: str = "citizen"
+    password: str = Field(min_length=8)
+    role: Role = Role.OFFICIAL
+    department: str = ""
+    pin: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -26,6 +33,8 @@ class UserLogin(BaseModel):
 
 
 class PinLogin(BaseModel):
+    """Fast-access PIN for authorities. PIN is per-user, not global."""
+    email: str
     pin: str
 
 
@@ -35,19 +44,13 @@ class TokenResponse(BaseModel):
     user: dict
 
 
-class UserProfile(BaseModel):
-    id: str
-    name: str
-    email: str
-    role: str
-
-
 # ---------------------------------------------------------------------------
 # Raw input models (demo/sample data)
 # ---------------------------------------------------------------------------
 
 class VillageInput(BaseModel):
-    """Raw habitation record as stored in villages.json (demo/sample data)."""
+    """Raw habitation record as stored in villages.json / produced by the
+    ingestion pipeline."""
     id: str
     name: str
     latitude: float
@@ -62,7 +65,7 @@ class VillageInput(BaseModel):
 
 
 class SafeZoneInput(BaseModel):
-    """Raw safe zone / shelter record as stored in safe_zones.json (demo/sample data)."""
+    """Raw safe zone / shelter record as stored in safe_zones.json."""
     id: str
     name: str
     latitude: float
@@ -78,7 +81,7 @@ class SafeZoneInput(BaseModel):
 # ---------------------------------------------------------------------------
 
 class SOSReportInput(BaseModel):
-    """A citizen-submitted SOS report."""
+    """A citizen-submitted SOS report (no account required)."""
     reporter_name: str
     reporter_phone: str = ""
     village_id: str
@@ -131,38 +134,34 @@ class SOSPriorityItem(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Mesh network models
+# Adjudication (authority feedback feed into the learning engine)
 # ---------------------------------------------------------------------------
 
-class MeshNode(BaseModel):
-    """A device node in the offline mesh network."""
+class AdjudicateInput(BaseModel):
+    """An authority closing out an SOS report with the confirmed outcome.
+    This is the 'real-time data' the learning engine trains on."""
+    report_id: str
+    actual_people_affected: int = Field(ge=0)
+    actual_severity: int = Field(ge=1, le=5)
+    outcome: str = ""  # e.g. "evacuated", "resupplied", "medical_aid", "no_action"
+    note: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Real-event store (validation / backtesting)
+# ---------------------------------------------------------------------------
+
+class EventInput(BaseModel):
+    """A documented historical event used to validate the pipeline."""
     id: str
-    device_name: str
-    device_type: str  # CIVILIAN, VOLUNTEER, RESCUE, GATEWAY
+    hazard_type: str
+    location_name: str = ""
     village_id: Optional[str] = None
-    village_name: str
-    battery_level: int = Field(ge=0, le=100)
-    status: str  # ACTIVE, INACTIVE, RELAYING
-    last_seen: str
-    connected_peers: list[str] = []
-    latitude: float
-    longitude: float
-    messages_relayed: int = 0
-
-
-class MeshHealthSummary(BaseModel):
-    """Summary of mesh network health."""
-    total_nodes: int
-    active_nodes: int
-    inactive_nodes: int
-    relay_nodes: int
-    gateway_nodes: int
-    civilian_nodes: int
-    volunteer_nodes: int
-    rescue_nodes: int
-    avg_battery: float
-    total_messages_relayed: int
-    network_coverage_pct: float
+    date: str = ""
+    observed_severity: float = Field(ge=0, le=5)
+    magnitude: str = ""
+    source: str = ""
+    note: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +254,7 @@ class SafeZoneResult(BaseModel):
     medical_access: float
     safety_score: float
     road_access_score: float
+    effective_capacity: int = 0
     allocated_population: int
     remaining_capacity: int
 
@@ -270,6 +270,9 @@ class DestinationScore(BaseModel):
     road_accessibility: float
     destination_score: float
     reasons: list[str]
+    # Resettlement quality factors (Correa, 2011 - resettlement guide)
+    livelihood_access: Optional[float] = None
+    community_continuity: Optional[float] = None
 
 
 class RecommendationResult(BaseModel):
@@ -315,3 +318,16 @@ class ScenarioResult(BaseModel):
     safe_zones: list[SafeZoneResult]
     risk_summary: RiskSummary
     comparison: ScenarioComparison
+
+
+# ---------------------------------------------------------------------------
+# Advisory (reasoning engine) models
+# ---------------------------------------------------------------------------
+
+class DistrictAdvisory(BaseModel):
+    recommended_action: str
+    recommended_action_label: str
+    confidence: float
+    evidence: list[str]
+    verdict: str = "AUTHORITY"
+    verdict_note: str

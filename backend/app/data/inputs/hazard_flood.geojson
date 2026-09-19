@@ -1,0 +1,28 @@
+{
+  "name": "flood_inundation",
+  "hazard_type": "flood",
+  "source": "Sample for prototype validation - approximated from IMD/NDMA flood footprint records of Kedarnath sector, 2013. NOT a live feed.",
+  "features": [
+    {
+      "properties": { "zone": "upper_mandakini", "severity": 95, "notes": "Covers Kedarnath, Rambara to Gaurikund stretch - GLOF inundation corridor" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.02, 30.62], [79.10, 30.62], [79.10, 30.78], [79.02, 30.78], [79.02, 30.62]]]
+      }
+    },
+    {
+      "properties": { "zone": "mid_mandakini", "severity": 70, "notes": "Guptkashi, Phata, Sonprayag belt" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.00, 30.58], [79.08, 30.58], [79.08, 30.66], [79.00, 30.66], [79.00, 30.58]]]
+      }
+    },
+    {
+      "properties": { "zone": "alakananda_confluence", "severity": 45, "notes": "Rudraprayag township stretch" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.00, 30.24], [79.12, 30.24], [79.12, 30.34], [79.00, 30.34], [79.00, 30.24]]]
+      }
+    }
+  ]
+}

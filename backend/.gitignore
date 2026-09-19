@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Generated runtime artifacts
+app/data/.jwt_secret
+app/data/safelink.db
+app/data/safelink.db-*
+
+# Test artifacts
+.pytest_cache/
+htmlcov/

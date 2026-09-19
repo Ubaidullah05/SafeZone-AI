@@ -1,44 +1,74 @@
 """
-Authentication Module
-=====================
+Authentication & Authorization (RBAC)
+=====================================
 
-Handles JWT-based authentication, password hashing, and biometric mock flows.
-All passwords are bcrypt-hashed. JWT tokens carry user id, name, email, and role.
+JWT-based auth for AUTHORITY accounts only (ADMIN / OFFICIAL / VOLUNTEER).
+
+* Civilians never need an account - the public stream is open.
+* Roles are assigned by the server (an ADMIN creates accounts); the client
+  can never choose its own role.
+* Passwords are bcrypt-hashed. Fast-access PINs are stored per-user, hashed.
+* Failed logins are rate-limited (5 failures locks the account for 15 min).
+* The JWT signing secret comes from the SAFEZONE_JWT_SECRET env var, or from
+  a per-install generated secret file (kept out of git) so a demonstrable
+  default secret is never committed.
 """
 
-import json
+import os
+import secrets
 import time
-import uuid
 from pathlib import Path
 from typing import Optional
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
+from . import db
+from .roles import Role, is_authority
 
-JWT_SECRET = "safezone-ai-dev-secret-change-in-production"
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_SECONDS = 86400 * 7  # 7 days
+JWT_EXPIRY_SECONDS = int(os.environ.get("SAFEZONE_JWT_EXPIRY", 86400 * 7))  # 7 days
 
 DATA_DIR = Path(__file__).parent / "data"
 
+
 # ---------------------------------------------------------------------------
-# Password hashing
+# JWT secret - env var first, then a generated per-install secret file
 # ---------------------------------------------------------------------------
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def _load_or_create_secret() -> str:
+    env_secret = os.environ.get("SAFEZONE_JWT_SECRET", "").strip()
+    if env_secret:
+        return env_secret
+    secret_file = DATA_DIR / ".jwt_secret"
+    if secret_file.exists():
+        return secret_file.read_text(encoding="utf-8").strip()
+    generated = secrets.token_urlsafe(48)
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    secret_file.write_text(generated, encoding="utf-8")
+    try:
+        os.chmod(secret_file, 0o600)
+    except OSError:
+        pass
+    return generated
 
+
+JWT_SECRET = _load_or_create_secret()
+
+
+# ---------------------------------------------------------------------------
+# Password hashing (bcrypt directly - passlib is unmaintained)
+# ---------------------------------------------------------------------------
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -59,116 +89,164 @@ def create_token(user_id: str, name: str, email: str, role: str) -> str:
 
 def decode_token(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
 
 
 # ---------------------------------------------------------------------------
-# User store (JSON file for prototype)
+# Rate limiting - 5 failed attempts per email per 15 minutes
 # ---------------------------------------------------------------------------
 
-USERS_PATH = DATA_DIR / "users.json"
+LOCKOUT_ATTEMPTS = 5
+LOCKOUT_WINDOW_SECONDS = 15 * 60
+LOCKOUT_COOLDOWN_SECONDS = 15 * 60
 
 
-def _load_users() -> list[dict]:
-    if not USERS_PATH.exists():
-        return []
-    with open(USERS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+def _record_auth_attempt(email: str, action: str, success: bool, ip: Optional[str] = None) -> None:
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO auth_attempts (email, action, ip, success, created_at) VALUES (?, ?, ?, ?, ?)",
+            (email.lower(), action, ip, 1 if success else 0, time.time()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def _save_users(users: list[dict]) -> None:
-    with open(USERS_PATH, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
+def _is_locked_out(email: str) -> int:
+    """Returns seconds remaining in the lockout, or 0 if not locked."""
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            "SELECT created_at FROM auth_attempts "
+            "WHERE email=? AND success=0 AND created_at > ? "
+            "ORDER BY created_at DESC",
+            (email.lower(), time.time() - LOCKOUT_COOLDOWN_SECONDS),
+        ).fetchone()
+        if not row:
+            return 0
+        failures = conn.execute(
+            "SELECT COUNT(*) AS n FROM auth_attempts "
+            "WHERE email=? AND success=0 AND created_at > ?",
+            (email.lower(), time.time() - LOCKOUT_WINDOW_SECONDS),
+        ).fetchone()["n"]
+        if failures < LOCKOUT_ATTEMPTS:
+            return 0
+        return max(0, int(row["created_at"] + LOCKOUT_COOLDOWN_SECONDS - time.time()))
+    finally:
+        conn.close()
 
+
+# ---------------------------------------------------------------------------
+# User store (SQLite)
+# ---------------------------------------------------------------------------
 
 def find_user_by_email(email: str) -> Optional[dict]:
-    users = _load_users()
-    for u in users:
-        if u["email"].lower() == email.lower():
-            return u
-    return None
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM users WHERE lower(email)=lower(?) AND active=1", (email,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
 def find_user_by_id(user_id: str) -> Optional[dict]:
-    users = _load_users()
-    for u in users:
-        if u["id"] == user_id:
-            return u
-    return None
+    conn = db.get_conn()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id=? AND active=1", (user_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
-def create_user(name: str, email: str, password: str, role: str = "citizen") -> dict:
-    users = _load_users()
-    if find_user_by_email(email):
-        raise ValueError(f"Email '{email}' is already registered")
-    user = {
-        "id": f"USR{uuid.uuid4().hex[:6].upper()}",
-        "name": name,
-        "email": email,
-        "password_hash": hash_password(password),
-        "role": role,
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    users.append(user)
-    _save_users(users)
-    return user
+def list_users() -> list[dict]:
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT id, name, email, role, department, created_at, active FROM users ORDER BY created_at"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
-# ---------------------------------------------------------------------------
-# Biometric mock — face recognition simulation
-# ---------------------------------------------------------------------------
-# In production this would call a real face recognition service.
-# For the hackathon prototype, we accept any non-empty image data and
-# match against the first user with the matching "face_id" stored locally.
-# Since there is no real face DB, we simply accept the mock and return
-# a default admin user so the demo always works.
-
-def authenticate_face_mock() -> dict:
-    """Simulate successful face recognition. Returns admin user for demo."""
-    user = find_user_by_email("rethikas2782@gmail.com")
-    if not user:
-        raise ValueError("Default admin user not found")
-    return user
-
-
-def authenticate_face(image_data: str) -> dict:
-    """Authenticate via face recognition. Accepts base64 image from camera.
-    For demo: accepts any non-empty image and returns the user account.
-    In production: would send to a face recognition API."""
-    if not image_data:
-        raise ValueError("Invalid face image data")
-    # Demo: accept face scan and return the user
-    return authenticate_face_mock()
-
-
-def authenticate_fingerprint(fingerprint_id: str) -> dict:
-    """Authenticate via fingerprint/biometric. Accepts WebAuthn credential.
-    For demo: accepts any non-empty fingerprint ID and returns the user.
-    In production: would verify against stored WebAuthn credentials."""
-    if not fingerprint_id:
-        raise ValueError("Fingerprint authentication failed")
-    # Demo: accept fingerprint and return the user
-    user = find_user_by_email("rethikas2782@gmail.com")
-    if not user:
-        raise ValueError("Default admin user not found")
-    return user
+def create_user(
+    name: str, email: str, password: str, role: str, department: str = "", pin: Optional[str] = None
+) -> dict:
+    """Server-side authority account creation. Role is validated, never trusted
+    from the client at the endpoint layer."""
+    role = role.upper()
+    if not is_authority(role):
+        raise ValueError(f"Role '{role}' is not a valid authority role")
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    conn = db.get_conn()
+    try:
+        if conn.execute("SELECT 1 FROM users WHERE lower(email)=lower(?)", (email,)).fetchone():
+            raise ValueError(f"Email '{email}' is already registered")
+        user = {
+            "id": "USR" + secrets.token_hex(3).upper(),
+            "name": name,
+            "email": email,
+            "password_hash": hash_password(password),
+            "role": role,
+            "pin_hash": hash_password(pin) if pin else None,
+            "department": department,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        conn.execute(
+            "INSERT INTO users (id, name, email, password_hash, role, pin_hash, department, created_at, active) "
+            "VALUES (:id, :name, :email, :password_hash, :role, :pin_hash, :department, :created_at, 1)",
+            user,
+        )
+        conn.commit()
+        return user
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
-# Emergency PIN — works with any registered account
+# Authenticators
 # ---------------------------------------------------------------------------
-# Demo PIN: 1234. In production this would be a per-user configurable PIN
-# with rate limiting. For the prototype, a single shared demo PIN is fine.
 
-EMERGENCY_PIN = "1234"
-
-
-def authenticate_pin(pin: str) -> Optional[dict]:
-    """Verify emergency PIN. Returns the official user for demo."""
-    if pin != EMERGENCY_PIN:
+def authenticate_login(email: str, password: str, ip: Optional[str] = None) -> Optional[dict]:
+    """Email + password login with lockout. Returns user dict or None."""
+    if lockout := _is_locked_out(email):
+        raise PermissionError(f"Too many failed attempts. Try again in {int(lockout // 60) + 1} min.")
+    user = find_user_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        _record_auth_attempt(email, "login", False, ip)
         return None
-    user = find_user_by_email("official@safezone.gov")
+    _record_auth_attempt(email, "login", True, ip)
     return user
+
+
+def authenticate_pin(email: str, pin: str, ip: Optional[str] = None) -> Optional[dict]:
+    """Per-user fast-access PIN for authorities."""
+    if lockout := _is_locked_out(email):
+        raise PermissionError(f"Too many failed attempts. Try again in {int(lockout // 60) + 1} min.")
+    user = find_user_by_email(email)
+    if not user or not user.get("pin_hash") or not verify_password(pin, user["pin_hash"]):
+        _record_auth_attempt(email, "pin", False, ip)
+        return None
+    _record_auth_attempt(email, "pin", True, ip)
+    return user
+
+
+# ---------------------------------------------------------------------------
+# Dependency helpers used by main.py
+# ---------------------------------------------------------------------------
+
+def public_user(user: dict) -> dict:
+    """Shape of a user dict safe to send to the client."""
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"],
+        "department": user.get("department", ""),
+    }

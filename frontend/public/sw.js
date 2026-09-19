@@ -1,19 +1,19 @@
 /**
  * SafeLink-AI Service Worker
  * ==========================
- * Full offline support with cache-first strategy.
- * Caches app shell, static assets, and API responses.
- * Supports background sync for SOS submissions.
+ * Offline support with cache-first strategy for the app shell and
+ * network-first (cache fallback) for API responses.
+ * Background sync queues offline SOS submissions for replay when back online.
  */
 
-const CACHE_NAME = 'safelink-v3'
-const STATIC_CACHE = 'safelink-static-v3'
-const API_CACHE = 'safelink-api-v3'
+const CACHE_NAME = 'safelink-v4'
+const STATIC_CACHE = 'safelink-static-v4'
+const API_CACHE = 'safelink-api-v4'
 
 // App shell files to pre-cache
 const APP_SHELL = [
   '/',
-  '/index.html',
+  '/login',
   '/manifest.json',
 ]
 
@@ -31,12 +31,11 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== STATIC_CACHE && key !== API_CACHE)
+          .filter((key) => !key.endsWith('-v4'))
           .map((key) => caches.delete(key))
       )
-    )
+    ).then(() => self.clients.claim())
   )
-  self.clients.claim()
 })
 
 // Fetch: network-first for API, cache-first for static
@@ -49,34 +48,26 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful GET responses
           if (request.method === 'GET' && response.ok) {
             const clone = response.clone()
             caches.open(API_CACHE).then((cache) => cache.put(request, clone))
           }
           return response
         })
-        .catch(() => {
-          // Offline: try cache
-          return caches.match(request).then((cached) => {
+        .catch(() =>
+          caches.match(request).then((cached) => {
             if (cached) return cached
-            // Return offline JSON for key endpoints
-            if (url.pathname.includes('/mesh/')) {
-              return new Response(JSON.stringify({ nodes: [], health: {}, messages: [] }), {
-                headers: { 'Content-Type': 'application/json' },
-              })
-            }
             return new Response(JSON.stringify({ error: 'offline' }), {
               headers: { 'Content-Type': 'application/json' },
               status: 503,
             })
           })
-        })
+        )
     )
     return
   }
 
-  // Static assets: stale-while-revalidate (serve cached, fetch fresh in background)
+  // Static assets: stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request).then((response) => {
@@ -86,9 +77,8 @@ self.addEventListener('fetch', (event) => {
         }
         return response
       }).catch(() => {
-        // Offline fallback for navigation
         if (request.mode === 'navigate') {
-          return caches.match('/index.html')
+          return caches.match('/')
         }
         return new Response('', { status: 408 })
       })
@@ -97,7 +87,7 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// Background sync for SOS submissions
+// Background sync builds up while offline and replays when back online.
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-sos') {
     event.waitUntil(syncOfflineSOS())
@@ -105,25 +95,30 @@ self.addEventListener('sync', (event) => {
 })
 
 async function syncOfflineSOS() {
-  // Open IndexedDB and get pending SOS
   const db = await openDB()
-  const tx = db.transaction('sos_queue', 'readonly')
-  const store = tx.objectStore('sos_queue')
+  const tx = db.transaction('sosReports', 'readonly')
+  const store = tx.objectStore('sosReports')
   const request = store.getAll()
 
   return new Promise((resolve) => {
     request.onsuccess = async () => {
-      const reports = request.result
+      const reports = request.result || []
       for (const report of reports) {
+        if (report.status !== 'PENDING_SYNC') continue
         try {
-          await fetch('/api/sos/submit', {
+          const payload = { ...report }
+          delete payload.id
+          delete payload.status
+          delete payload.priority_score
+          const res = await fetch('/api/sos/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(report),
+            body: JSON.stringify(payload),
           })
-          // Remove from queue
-          const deleteTx = db.transaction('sos_queue', 'readwrite')
-          deleteTx.objectStore('sos_queue').delete(report.id)
+          if (res.ok) {
+            const deleteTx = db.transaction('sosReports', 'readwrite')
+            await deleteTx.objectStore('sosReports').delete(report.id)
+          }
         } catch {
           // Will retry on next sync
         }
@@ -134,10 +129,17 @@ async function syncOfflineSOS() {
   })
 }
 
+// Must match src/services/offlineCache.js (DB_NAME / SOS store name).
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('safelink-mesh', 1)
+    const request = indexedDB.open('safezone-ai-db', 1)
     request.onerror = () => reject(request.error)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('sosReports')) {
+        db.createObjectStore('sosReports', { keyPath: 'id' })
+      }
+    }
     request.onsuccess = () => resolve(request.result)
   })
 }

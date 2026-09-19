@@ -8,8 +8,17 @@ Builds on the Risk Engine to answer three further questions:
                         how hazardous is the location?
 2. Relocation Priority - which habitation should be relocated first?
 3. Destination Ranking - given a village that needs relocation, which safe
-                          zone is the best feasible destination (not simply
-                          the nearest one)?
+                        zone is the best feasible destination?
+
+Upgrade note (Correa, 2011, World Bank resettlement guide):
+  * destination choice weighs not only safety/capacity/distance but also
+    livelihood access and community continuity - resettlement that severs
+    livelihoods or social ties is itself a risk multiplier.
+
+Upgrade note (Han et al., 2025 - distance vs capacity greedy allocation):
+  * allocation is greedy by ranked priority order; the ordering policy is
+    explicit (`capacity_first` or `distance_first`) so authorities can see how
+    sensitive the plan is to the allocation objective.
 
 All formulas are documented inline and use named constants so they can be
 tuned without hunting through the codebase.
@@ -48,8 +57,6 @@ def people_requiring_relocation(village: VillageInput, risk_score: float) -> int
     if risk_score < RELOCATION_RISK_THRESHOLD:
         return 0
     severity_fraction = min((risk_score - RELOCATION_RISK_THRESHOLD) / (100 - RELOCATION_RISK_THRESHOLD), 1.0)
-    # Blend a floor of 40% affected with the severity fraction so CRITICAL
-    # villages approach ~90-95% of population needing relocation assessment.
     affected_fraction = 0.40 + 0.55 * severity_fraction
     return round(village.population * affected_fraction)
 
@@ -79,16 +86,18 @@ def calculate_relocation_priority(
 
 
 # ---------------------------------------------------------------------------
-# Destination scoring (spec sections 16-17)
+# Destination scoring (spec sections 16-17 + Correa 2011 resettlement factors)
 # ---------------------------------------------------------------------------
 EARTH_RADIUS_KM = 6371.0
 AVERAGE_ROAD_SPEED_KMH = 30.0  # assumption for hilly pilot-district roads
 
-WEIGHT_DEST_SAFETY = 0.25
-WEIGHT_DEST_CAPACITY = 0.25
-WEIGHT_DEST_ROAD_ACCESS = 0.20
-WEIGHT_DEST_DISTANCE = 0.15
-WEIGHT_DEST_MEDICAL = 0.15
+WEIGHT_DEST_SAFETY = 0.22
+WEIGHT_DEST_CAPACITY = 0.22
+WEIGHT_DEST_ROAD_ACCESS = 0.15
+WEIGHT_DEST_DISTANCE = 0.12
+WEIGHT_DEST_MEDICAL = 0.12
+WEIGHT_DEST_LIVELIHOOD = 0.09
+WEIGHT_DEST_COMMUNITY = 0.08
 
 MAX_REASONABLE_DISTANCE_KM = 60  # beyond this, distance suitability -> 0
 
@@ -107,6 +116,17 @@ def _distance_suitability(distance_km: float) -> float:
     return max(min(suitability, 100), 0)
 
 
+def _livelihood_access(safe_zone: SafeZoneInput) -> float:
+    """Access to livelihood-supporting services (markets/hospitals/roads)."""
+    return round(0.5 * safe_zone.road_access_score + 0.5 * safe_zone.medical_access, 1)
+
+
+def _community_continuity(distance_km: float) -> float:
+    """Proximity keeps families near their origin area, reducing social rupture
+    (Correa, 2011). Uses the same decay as distance suitability."""
+    return round(_distance_suitability(distance_km), 1)
+
+
 def score_destination(
     village: VillageInput,
     safe_zone: SafeZoneInput,
@@ -120,13 +140,17 @@ def score_destination(
     capacity_score = capacity_ratio * 100
 
     distance_suitability = _distance_suitability(distance_km)
+    livelihood = _livelihood_access(safe_zone)
+    community = _community_continuity(distance_km)
 
     destination_score = round(
         WEIGHT_DEST_SAFETY * safe_zone.safety_score
         + WEIGHT_DEST_CAPACITY * capacity_score
         + WEIGHT_DEST_ROAD_ACCESS * safe_zone.road_access_score
         + WEIGHT_DEST_DISTANCE * distance_suitability
-        + WEIGHT_DEST_MEDICAL * safe_zone.medical_access,
+        + WEIGHT_DEST_MEDICAL * safe_zone.medical_access
+        + WEIGHT_DEST_LIVELIHOOD * livelihood
+        + WEIGHT_DEST_COMMUNITY * community,
         1,
     )
 
@@ -143,6 +167,8 @@ def score_destination(
         reasons.append("Nearby medical facilities")
     if distance_km <= 25:
         reasons.append("Acceptable travel distance")
+    if livelihood >= 65:
+        reasons.append("Livelihood/community services reachable at destination")
     if not reasons:
         reasons.append("Best available option among feasible safe zones")
 
@@ -157,6 +183,8 @@ def score_destination(
         road_accessibility=safe_zone.road_access_score,
         destination_score=destination_score,
         reasons=reasons,
+        livelihood_access=livelihood,
+        community_continuity=community,
     )
 
 
@@ -165,10 +193,17 @@ def rank_destinations(
     safe_zones: list[SafeZoneInput],
     ledger: CapacityLedger,
     people_needing_relocation: int,
+    policy: str = "capacity_first",
 ) -> list[DestinationScore]:
     """Score every safe zone. Zones with sufficient capacity are preferred;
     zones with zero remaining capacity are only surfaced if nothing else is
-    feasible (spec section 16)."""
+    feasible (spec section 16).
+
+    `policy` selects the greedy tie-break objective (Han et al., 2025):
+      - "capacity_first": as above (safety+capacity weighted composite).
+      - "distance_first": pure-distance greedy (fast, but can over-fill a
+        nearby shelter and leave capacity idle further away).
+    """
     scored = [
         score_destination(village, sz, ledger.remaining_capacity(sz.id), people_needing_relocation)
         for sz in safe_zones
@@ -176,5 +211,8 @@ def rank_destinations(
 
     with_capacity = [d for d in scored if d.available_capacity > 0]
     pool = with_capacity if with_capacity else scored
+
+    if policy == "distance_first":
+        return sorted(pool, key=lambda d: d.distance_km)
 
     return sorted(pool, key=lambda d: d.destination_score, reverse=True)

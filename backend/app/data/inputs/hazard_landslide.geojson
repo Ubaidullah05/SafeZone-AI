@@ -1,0 +1,28 @@
+{
+  "name": "landslide_susceptibility",
+  "hazard_type": "landslide",
+  "source": "Sample for prototype validation - approximated susceptibility from published Uttarakhand landslide zonation maps. NOT a live feed.",
+  "features": [
+    {
+      "properties": { "zone": "keshavprayag_rambara_track", "severity": 85, "notes": "Steep pilgrim-track slope section near Kedarnath approach" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.03, 30.68], [79.08, 30.68], [79.08, 30.74], [79.03, 30.74], [79.03, 30.68]]]
+      }
+    },
+    {
+      "properties": { "zone": "guptkashi_slopes", "severity": 65, "notes": "Landside-prone mid-rise slopes around Guptkashi" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[78.99, 30.60], [79.06, 30.60], [79.06, 30.65], [78.99, 30.65], [78.99, 30.60]]]
+      }
+    },
+    {
+      "properties": { "zone": "rudraprayag_ridges", "severity": 55, "notes": "Ridge stretches north of Rudraprayag town" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[79.00, 30.29], [79.10, 30.29], [79.10, 30.36], [79.00, 30.36], [79.00, 30.29]]]
+      }
+    }
+  ]
+}

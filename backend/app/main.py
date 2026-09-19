@@ -7,32 +7,37 @@ Capacity Assessment, and Immediate Relocation Needs for Vulnerable Habitations.
 This is a decision-support PROTOTYPE. All data is demo/sample data for a
 fictional-but-geographically-consistent pilot district unless explicitly
 documented otherwise. No live government or satellite feeds are integrated.
+
+Access model (RBAC):
+  * PUBLIC (no account)  - villages, risk summary, scenario what-ifs, SOS
+                           submission + aggregate stats, advisories, health.
+  * AUTHORITY (JWT)      - SOS report detail/status updates, adjudication,
+                           authority account creation (ADMIN), ingestion
+                           validation, learning-engine status, real events.
+  * Civilians never need an account; every mutating endpoint is protected.
 """
 
-import json
-import time
 import asyncio
+import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Header, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
+from . import db
 from .data_loader import load_villages, load_safe_zones
 from .models import (
     RecommendationResult, ScenarioAdjustments, ScenarioResult,
     UserRegister, UserLogin, PinLogin, TokenResponse,
-    SOSReportInput, SOSReportResult,
-    MeshNode, MeshHealthSummary,
+    SOSReportInput, SOSReportResult, AdjudicateInput, EventInput,
 )
 from .relocation_engine import rank_destinations
 from .capacity_engine import CapacityLedger
 from .scenario_engine import run_full_pipeline, run_scenario
 from .auth import (
-    create_token, decode_token, find_user_by_email, find_user_by_id,
-    create_user, verify_password, authenticate_face_mock, authenticate_face,
-    authenticate_fingerprint, authenticate_pin,
+    create_token, decode_token, find_user_by_id,
+    create_user, authenticate_login, authenticate_pin, public_user, list_users,
 )
 from .sos_engine import (
     add_sos_report, get_reports_by_village, get_reports_by_status,
@@ -42,46 +47,71 @@ from .sos_engine import (
 from .ground_reality_engine import (
     compute_ground_reality, get_operational_priority_list,
 )
-from . import mesh_engine
-
-DATA_DIR = Path(__file__).parent / "data"
+from .reasoning_engine import build_advisory, district_advisory
+from .learning_engine import record_observation, stats as learning_stats
+from .red_zone_ingestion import (
+    ingest_sample, load_backtest_events, build_backtest_villages,
+)
+from .risk_engine import calculate_risk
 
 app = FastAPI(
     title="SafeLink - AI API",
-    description="Decision-support prototype for SIH26191. Demo/sample data only.",
-    version="0.2.0",
+    description=(
+        "Decision-support prototype for SIH26191. "
+        "Machine proposes, the authority decides - outputs are advisories."
+    ),
+    version="0.3.0",
 )
 
+# CORS: bearer tokens travel in the Authorization header, not cookies.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    db.init_db()
 
 
 # ---------------------------------------------------------------------------
 # Auth dependency
 # ---------------------------------------------------------------------------
 
-def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    """Extract and validate JWT from Authorization header. Returns user dict or None."""
+def _user_from_header(authorization: Optional[str]) -> Optional[dict]:
     if not authorization or not authorization.startswith("Bearer "):
         return None
-    token = authorization.split(" ", 1)[1]
-    payload = decode_token(token)
+    payload = decode_token(authorization.split(" ", 1)[1])
     if not payload:
         return None
-    user = find_user_by_id(payload.get("sub", ""))
-    return user
+    return find_user_by_id(payload.get("sub", ""))
 
 
 def require_auth(authorization: Optional[str] = Header(None)) -> dict:
-    """Require a valid JWT token. Raises 401 if missing/invalid."""
-    user = get_current_user(authorization)
+    """Require a valid authority JWT."""
+    user = _user_from_header(authorization)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
+
+def require_admin(authorization: Optional[str] = Header(None)) -> dict:
+    """Require an ADMIN account (authority account creation, user listing)."""
+    user = _user_from_header(authorization)
+    if not user or user["role"] != "ADMIN":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def require_official(authorization: Optional[str] = Header(None)) -> dict:
+    """Require an ADMIN or OFFICIAL (adjudication / field ops)."""
+    user = _user_from_header(authorization)
+    if not user or user["role"] not in ("ADMIN", "OFFICIAL"):
+        raise HTTPException(status_code=403, detail="Official access required")
     return user
 
 
@@ -90,82 +120,62 @@ def require_auth(authorization: Optional[str] = Header(None)) -> dict:
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "SafeLink - AI backend", "mode": "demo-data"}
+    return {
+        "status": "ok",
+        "service": "SafeLink - AI backend",
+        "mode": "demo-data",
+        "pipeline": "risk -> vulnerability -> relocation -> capacity -> destination",
+    }
 
 
 # ---------------------------------------------------------------------------
-# Authentication endpoints
+# Authentication endpoints (authority accounts only)
 # ---------------------------------------------------------------------------
 @app.post("/api/auth/register", response_model=TokenResponse)
-def register(data: UserRegister):
+def register(data: UserRegister, user: dict = Depends(require_admin)):
+    """ADMIN creates an authority account. Role is validated server-side."""
     try:
-        user = create_user(data.name, data.email, data.password, data.role)
+        new_user = create_user(data.name, data.email, data.password, data.role.value, data.department, data.pin)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    token = create_token(user["id"], user["name"], user["email"], user["role"])
-    return TokenResponse(
-        access_token=token,
-        user={"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]},
-    )
+    token = create_token(new_user["id"], new_user["name"], new_user["email"], new_user["role"])
+    return TokenResponse(access_token=token, user=public_user(new_user))
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(data: UserLogin):
-    user = find_user_by_email(data.email)
-    if not user or not verify_password(data.password, user["password_hash"]):
+    try:
+        user = authenticate_login(data.email, data.password)
+    except PermissionError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_token(user["id"], user["name"], user["email"], user["role"])
-    return TokenResponse(
-        access_token=token,
-        user={"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]},
-    )
-
-
-@app.post("/api/auth/face-login", response_model=TokenResponse)
-def face_login(data: dict = None):
-    """Face recognition login. On mobile, captures real camera image.
-    For demo: accepts image data and returns the user account."""
-    image_data = ""
-    if data:
-        image_data = data.get("image_data", "demo")
-    user = authenticate_face(image_data if image_data else "demo")
-    token = create_token(user["id"], user["name"], user["email"], user["role"])
-    return TokenResponse(
-        access_token=token,
-        user={"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]},
-    )
-
-
-@app.post("/api/auth/fingerprint-login", response_model=TokenResponse)
-def fingerprint_login(data: dict = None):
-    """Fingerprint/biometric login using WebAuthn. On mobile, triggers device biometric.
-    For demo: accepts credential data and returns the user account."""
-    credential_id = ""
-    if data:
-        credential_id = data.get("credential_id", "demo")
-    user = authenticate_fingerprint(credential_id if credential_id else "demo")
-    token = create_token(user["id"], user["name"], user["email"], user["role"])
-    return TokenResponse(
-        access_token=token,
-        user={"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]},
-    )
+    return TokenResponse(access_token=token, user=public_user(user))
 
 
 @app.post("/api/auth/pin-login", response_model=TokenResponse)
 def pin_login(data: PinLogin):
-    user = authenticate_pin(data.pin)
+    """Per-user fast-access PIN for authorities."""
+    try:
+        user = authenticate_pin(data.email, data.pin)
+    except PermissionError as e:
+        raise HTTPException(status_code=429, detail=str(e))
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid emergency PIN")
+        raise HTTPException(status_code=401, detail="Invalid PIN for this account")
     token = create_token(user["id"], user["name"], user["email"], user["role"])
-    return TokenResponse(
-        access_token=token,
-        user={"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]},
-    )
+    return TokenResponse(access_token=token, user=public_user(user))
 
 
 @app.get("/api/auth/me")
 def get_me(user: dict = Depends(require_auth)):
-    return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]}
+    return public_user(user)
+
+
+@app.get("/api/auth/users")
+def get_users(user: dict = Depends(require_admin)):
+    """Authority account list (ADMIN only)."""
+    return list_users()
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +258,7 @@ def get_recommendation(village_id: str):
             recommended=None,
             alternatives=[],
             summary=f"{village.name} is currently classified as {village_result.risk_level}. "
-            f"No relocation is required at this time based on current risk factors.",
+            "No relocation is required at this time based on current risk factors.",
         )
 
     ranked = rank_destinations(village, safe_zones, ledger, village_result.people_requiring_relocation)
@@ -261,13 +271,13 @@ def get_recommendation(village_id: str):
             f"{village.name} is currently classified as {village_result.risk_level} due to {reasons_text}. "
             f"An estimated {village_result.people_requiring_relocation:,} residents require relocation "
             f"assessment. {best.safe_zone_name} is currently the highest-ranked feasible destination based "
-            f"on safety, capacity, accessibility, medical access, and travel distance."
+            "on safety, capacity, accessibility, medical access, and travel distance."
         )
     else:
         summary = (
             f"{village.name} is currently classified as {village_result.risk_level} due to {reasons_text}. "
             f"An estimated {village_result.people_requiring_relocation:,} residents require relocation "
-            f"assessment, but no safe zone data is currently available."
+            "assessment, but no safe zone data is currently available."
         )
 
     return RecommendationResult(
@@ -281,7 +291,7 @@ def get_recommendation(village_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Scenario simulation
+# Scenario simulation (read-only compute; no mutation)
 # ---------------------------------------------------------------------------
 @app.post("/api/scenario", response_model=ScenarioResult)
 def post_scenario(adjustments: ScenarioAdjustments):
@@ -291,45 +301,90 @@ def post_scenario(adjustments: ScenarioAdjustments):
 
 
 # ---------------------------------------------------------------------------
+# Advisory (reasoning engine) - machine proposes, authority decides
+# ---------------------------------------------------------------------------
+def _village_advisories() -> list[dict]:
+    villages = load_villages()
+    safe_zones = load_safe_zones()
+    results, _, _ = run_full_pipeline(villages, safe_zones)
+    ground = {g.village_id: g for g in compute_ground_reality(villages)}
+    sos_agg = aggregate_by_village()
+
+    advisories = []
+    for r in results:
+        g = ground.get(r.id)
+        agg = sos_agg.get(r.id, {})
+        active = agg.get("active_reports", 0)
+        medical = agg.get("medical_emergencies", 0)
+        proposed = None
+        if r.recommended_safe_zone_id:
+            proposed = {
+                "safe_zone_id": r.recommended_safe_zone_id,
+                "safe_zone_name": r.recommended_safe_zone_name,
+                "people": r.people_requiring_relocation,
+            }
+        advisories.append(
+            build_advisory(
+                r,
+                ground=g.model_dump() if g else None,
+                active_sos=active,
+                medical=medical,
+                proposed_relocation=proposed,
+            )
+        )
+    return advisories
+
+
+@app.get("/api/advisory")
+def get_advisories():
+    """District-level advisory + per-habitation advisories."""
+    villages = load_villages()
+    safe_zones = load_safe_zones()
+    _, _, summary = run_full_pipeline(villages, safe_zones)
+    district = district_advisory(summary.model_dump(), [])
+    return {
+        "district": district,
+        "habitations": _village_advisories(),
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+@app.get("/api/advisory/{village_id}")
+def get_village_advisory(village_id: str):
+    for a in _village_advisories():
+        if a["village_id"] == village_id:
+            return a
+    raise HTTPException(status_code=404, detail=f"Village '{village_id}' not found")
+
+
+# ---------------------------------------------------------------------------
+# Learning engine (adaptive weights) - authority-facing status
+# ---------------------------------------------------------------------------
+@app.get("/api/learning")
+def get_learning_state():
+    """How much evidence the adaptive model has seen and what weights it uses."""
+    return learning_stats()
+
+
+# ---------------------------------------------------------------------------
 # SAFEZONE CONNECT - SOS endpoints
 # ---------------------------------------------------------------------------
 @app.post("/api/sos/submit", response_model=SOSReportResult)
 def submit_sos(report: SOSReportInput):
-    """Citizen submits an SOS report and relays through mesh network."""
+    """Citizen submits an SOS report (no account required)."""
     villages = load_villages()
     village = next((v for v in villages if v.id == report.village_id), None)
     pop = village.population if village else 2000
-    result = add_sos_report(report, village_population=pop)
-    # Also submit through mesh network for real-time relay visualization
-    try:
-        # Find a mesh node in the same village
-        nodes = mesh_engine.get_nodes()
-        source_node = "NODE001"  # default
-        for n in nodes:
-            if n.get("village_id") == report.village_id and n["status"] == "ACTIVE":
-                source_node = n["id"]
-                break
-        mesh_engine.submit_sos_message({
-            "emergency_type": report.emergency_type,
-            "severity": report.severity,
-            "medical_emergency": report.medical_emergency,
-            "description": report.description,
-            "source_node": source_node,
-            "village_id": report.village_id,
-            "latitude": report.latitude,
-            "longitude": report.longitude,
-        })
-    except Exception:
-        pass  # Mesh relay is best-effort
-    return result
+    return add_sos_report(report, village_population=pop)
 
 
 @app.get("/api/sos/reports")
 def get_sos_reports(
     village_id: Optional[str] = None,
     status: Optional[str] = None,
+    user: dict = Depends(require_auth),
 ):
-    """Get all SOS reports, optionally filtered."""
+    """Authority-only SOS report list (contains reporter contact details)."""
     reports = load_sos_reports()
     if village_id:
         reports = [r for r in reports if r["village_id"] == village_id]
@@ -340,7 +395,7 @@ def get_sos_reports(
 
 
 @app.get("/api/sos/reports/{report_id}")
-def get_sos_report(report_id: str):
+def get_sos_report(report_id: str, user: dict = Depends(require_auth)):
     reports = load_sos_reports()
     for r in reports:
         if r["id"] == report_id:
@@ -349,15 +404,76 @@ def get_sos_report(report_id: str):
 
 
 @app.patch("/api/sos/reports/{report_id}")
-def patch_sos_report(report_id: str, body: dict):
-    """Update report status."""
-    new_status = body.get("status")
+def patch_sos_report(report_id: str, body: dict, user: dict = Depends(require_official)):
+    """Authority updates a report's status."""
+    new_status = (body.get("status") or "").upper()
     if not new_status:
         raise HTTPException(status_code=400, detail="'status' field required")
-    result = update_report_status(report_id, new_status)
+    result = update_report_status(report_id, new_status, adjudicated_by=user["id"])
     if not result:
         raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
     return result
+
+
+@app.post("/api/sos/adjudicate")
+def adjudicate_report(data: AdjudicateInput, user: dict = Depends(require_official)):
+    """
+    Authority closes out a report with the CONFIRMED outcome. This is the
+    'real-time data' feed that tilts the learning engine's risk weights.
+    """
+    reports = load_sos_reports()
+    report = next((r for r in reports if r["id"] == data.report_id), None)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Report '{data.report_id}' not found")
+
+    # Factor values of the village the report came from - the learning signal.
+    factors = None
+    villages = load_villages()
+    village = next((v for v in villages if v.id == report["village_id"]), None)
+    if village:
+        factors = {
+            "hazard_severity": village.hazard_severity,
+            "slope_risk": village.slope_risk,
+            "population_exposure": village.population_exposure,
+            "accessibility_risk": village.accessibility_risk,
+            "facility_access_risk": village.facility_access_risk,
+            "historical_event_risk": village.historical_event_risk,
+        }
+
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO adjudications "
+            "(report_id, authority_id, actual_people_affected, actual_severity, outcome, note, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                data.report_id,
+                user["id"],
+                data.actual_people_affected,
+                data.actual_severity,
+                data.outcome,
+                data.note,
+                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            ),
+        )
+        conn.execute(
+            "UPDATE sos_reports SET status='RESOLVED', adjudicated_by=?, adjudicated_at=? WHERE id=?",
+            (user["id"], time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), data.report_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    learning = None
+    if factors:
+        learning = record_observation(factors, data.actual_severity)
+
+    return {
+        "report_id": data.report_id,
+        "status": "RESOLVED",
+        "recorded": True,
+        "learning_update": learning,
+    }
 
 
 @app.get("/api/sos/priority-queue")
@@ -367,7 +483,7 @@ def sos_priority_queue():
 
 @app.get("/api/sos/aggregate")
 def sos_aggregate():
-    """Aggregate SOS data by village."""
+    """Aggregate SOS data by village (no PII)."""
     return aggregate_by_village()
 
 
@@ -389,119 +505,156 @@ def sos_stats():
     }
 
 
-# ---------------------------------------------------------------------------
-# Mesh network endpoints (simulated real-time)
-# ---------------------------------------------------------------------------
-@app.get("/api/mesh/nodes")
-def get_mesh_nodes():
-    """Get all mesh nodes with live simulated state."""
-    return mesh_engine.get_nodes()
-
-
-@app.get("/api/mesh/health")
-def get_mesh_health():
-    """Get mesh network health with live metrics."""
-    return mesh_engine.get_health()
-
-
-@app.get("/api/mesh/relay-paths")
-def get_mesh_relay_paths():
-    """Get visualizable relay paths between nodes."""
-    return mesh_engine.get_relay_paths()
-
-
-@app.get("/api/mesh/clusters")
-def get_mesh_clusters():
-    """Get dynamic cluster formations."""
-    return mesh_engine.get_clusters()
-
-
-@app.get("/api/mesh/messages")
-def get_mesh_messages():
-    """Get current message state (in-transit, delivered, relay log)."""
-    return mesh_engine.get_messages()
-
-
-@app.get("/api/mesh/map-data")
-def get_mesh_map_data():
-    """Get all data needed for real-time network visualization."""
-    return mesh_engine.get_network_map_data()
-
-
-@app.post("/api/mesh/sos")
-def submit_mesh_sos(body: dict):
-    """Submit an SOS message through the mesh network."""
-    result = mesh_engine.submit_sos_message(body)
-    return result
+@app.get("/api/sos/latest")
+def sos_latest():
+    """Latest active reports for the public SOS feed (no PII)."""
+    reports = [r for r in load_sos_reports() if r["status"] != "RESOLVED"]
+    latest = sorted(reports, key=lambda r: r["timestamp"], reverse=True)[:10]
+    return [
+        {
+            "id": r["id"],
+            "village_id": r["village_id"],
+            "village_name": r["village_name"],
+            "emergency_type": r["emergency_type"],
+            "severity": r["severity"],
+            "people_affected": r["people_affected"],
+            "medical_emergency": r["medical_emergency"],
+            "latitude": r["latitude"],
+            "longitude": r["longitude"],
+            "timestamp": r["timestamp"],
+        }
+        for r in latest
+    ]
 
 
 # ---------------------------------------------------------------------------
-# WebSocket - Real-time mesh updates
+# Validation: real-data ingestion (red zones) + backtest (Kedarnath 2013)
 # ---------------------------------------------------------------------------
-connected_clients: set[WebSocket] = set()
+@app.get("/api/validation/red-zones")
+def validation_red_zones():
+    """Run the ingestion pipeline over the bundled SAMPLE inputs and show the
+    resulting hazard-severity attribution for each settlement."""
+    settlements = ingest_sample()
+    return {
+        "source_note": "Sample inputs only - NOT live official feeds. See "
+                       "backend/app/data/inputs/*.csv and *.geojson for provenance.",
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "villages": [v.model_dump() for v in settlements],
+    }
 
 
-@app.websocket("/ws/mesh")
-async def websocket_mesh(websocket: WebSocket):
-    """Real-time mesh network updates via WebSocket."""
-    await websocket.accept()
-    connected_clients.add(websocket)
+@app.get("/api/validation/backtest")
+def validation_backtest():
+    """Replay the documented Kedarnath 2013 event through the current model
+    and report prediction vs. observed outcome."""
+    events = load_backtest_events()
+    if not events:
+        return {
+            "fixture": "missing",
+            "note": "No backtest fixture found under backend/app/data/backtest/.",
+        }
+    villages = build_backtest_villages(events)
+    rows = []
+    bands = {"SAFE": 0, "MODERATE": 1, "HIGH": 2, "CRITICAL": 3}
+    exact_hits = onep_hits = critical_recall_hits = critical_recall_total = 0
+    for e, v in zip(events, villages):
+        score, level, explanation, breakdown = calculate_risk(v)
+        expected = (
+            "CRITICAL" if e["observed_severity"] >= 5
+            else "HIGH" if e["observed_severity"] >= 4
+            else "MODERATE" if e["observed_severity"] >= 3
+            else "SAFE"
+        )
+        matched = level == expected
+        within_one = abs(bands[level] - bands[expected]) <= 1
+        exact_hits += 1 if matched else 0
+        onep_hits += 1 if within_one else 0
+        if e["observed_severity"] >= 4:  # severe events must be flagged
+            critical_recall_total += 1
+            critical_recall_hits += 1 if level in ("HIGH", "CRITICAL") else 0
+        rows.append({
+            "id": e["id"],
+            "location_name": e["location_name"],
+            "observed_severity": e["observed_severity"],
+            "observed_outcome": e.get("observed_outcome", ""),
+            "predicted_risk_score": score,
+            "predicted_risk_level": level,
+            "expected_risk_level": expected,
+            "classification_match": matched,
+            "within_one_level": within_one,
+            "explanation": explanation,
+        })
+    n = len(rows)
+    return {
+        "event": "Kedarnath flash flood & GLOF, June 2013 (fixture: backend/app/data/backtest/kedarnath_2013.json)",
+        "note": (
+            "Illustrative reconstruction for validation - see fixture provenance. "
+            "A decision-support model is expected to over-flag rather than under-flag; "
+            "exact-match accuracy is a strict test, within-one-level is the practical "
+            "band tolerance, and critical-recall measures whether severe events get flagged."
+        ),
+        "rows": rows,
+        "accuracy_exact": round(exact_hits / n, 2) if n else None,
+        "accuracy_within_one_level": round(onep_hits / n, 2) if n else None,
+        "critical_recall": round(critical_recall_hits / critical_recall_total, 2) if critical_recall_total else None,
+        "learning_confidence": learning_stats()["confidence"],
+    }
+
+
+@app.post("/api/validation/register-event")
+def register_event(data: EventInput, user: dict = Depends(require_official)):
+    """Authorities register a documented historical event (validation corpus)."""
+    conn = db.get_conn()
     try:
-        while True:
-            # Send mesh state every 2 seconds
-            data = mesh_engine.get_network_map_data()
-            await websocket.send_json(data)
-            await asyncio.sleep(2)
-    except WebSocketDisconnect:
-        connected_clients.discard(websocket)
-    except Exception:
-        connected_clients.discard(websocket)
+        conn.execute(
+            "INSERT OR REPLACE INTO events "
+            "(id, village_id, location_name, hazard_type, date, observed_severity, magnitude, source, note) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                data.id,
+                data.village_id,
+                data.location_name,
+                data.hazard_type,
+                data.date,
+                data.observed_severity,
+                data.magnitude,
+                data.source,
+                data.note,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"id": data.id, "registered": True}
 
 
-@app.websocket("/ws/alerts")
-async def websocket_alerts(websocket: WebSocket):
-    """Real-time alert updates (new SOS, status changes)."""
-    await websocket.accept()
-    connected_clients.add(websocket)
-    last_count = 0
+@app.get("/api/events")
+def list_events():
+    """Public list of registered validation events."""
+    conn = db.get_conn()
     try:
-        while True:
-            # Check for new SOS reports
-            reports = load_sos_reports()
-            new_count = len([r for r in reports if r["status"] == "NEW"])
-            if new_count != last_count:
-                await websocket.send_json({
-                    "type": "sos_update",
-                    "new_reports": new_count,
-                    "total_reports": len(reports),
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                })
-                last_count = new_count
-            await asyncio.sleep(3)
-    except WebSocketDisconnect:
-        connected_clients.discard(websocket)
-    except Exception:
-        connected_clients.discard(websocket)
+        rows = conn.execute("SELECT * FROM events ORDER BY date").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
-# Offline manifest - serves cacheable data for Service Worker
+# Offline manifest (for the Service Worker)
 # ---------------------------------------------------------------------------
 @app.get("/api/offline-manifest")
 def offline_manifest():
-    """Returns data that should be cached for offline use."""
+    """Data snapshot the frontend can cache for offline use."""
     villages = load_villages()
     safe_zones = load_safe_zones()
     results, ledger, summary = run_full_pipeline(villages, safe_zones)
     return {
-        "version": "1.0",
+        "version": "1.1",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "villages": [r.model_dump() for r in results],
         "safe_zones": [sz.model_dump() for sz in ledger.as_results()],
         "risk_summary": summary.model_dump(),
         "sos_reports": load_sos_reports(),
-        "mesh_nodes": mesh_engine.get_nodes(),
-        "mesh_health": mesh_engine.get_health(),
         "ground_reality": [gr.model_dump() for gr in compute_ground_reality(villages)],
         "operational_priority": [
             op.model_dump() for op in get_operational_priority_list(villages)
@@ -534,3 +687,45 @@ def get_village_ground_reality(village_id: str):
 def get_operational_priority():
     villages = load_villages()
     return get_operational_priority_list(villages)
+
+
+# ---------------------------------------------------------------------------
+# WebSocket - real-time alert stream (new SOS, status changes)
+# ---------------------------------------------------------------------------
+@app.websocket("/ws/alerts")
+async def websocket_alerts(websocket: WebSocket):
+    """Public real-time SOS alert stream (aggregate only, no PII)."""
+    await websocket.accept()
+    last_signature = None
+    try:
+        while True:
+            reports = load_sos_reports()
+            active = sorted(
+                (r for r in reports if r["status"] != "RESOLVED"),
+                key=lambda r: r["timestamp"], reverse=True,
+            )
+            signature = (len(active), active[0]["id"] if active else None)
+            if signature != last_signature:
+                last_signature = signature
+                latest = active[:5] if active else []
+                await websocket.send_json({
+                    "type": "sos_update",
+                    "active_count": len(active),
+                    "total_reports": len(reports),
+                    "latest": [
+                        {
+                            "id": r["id"],
+                            "village_name": r["village_name"],
+                            "emergency_type": r["emergency_type"],
+                            "severity": r["severity"],
+                            "timestamp": r["timestamp"],
+                        }
+                        for r in latest
+                    ],
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                })
+            await asyncio.sleep(3)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass

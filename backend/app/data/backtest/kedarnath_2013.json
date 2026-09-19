@@ -1,0 +1,110 @@
+{
+  "event": "Kedarnath flash flood & GLOF, 16-17 June 2013",
+  "date": "2013-06-16",
+  "source": "Illustrative reconstruction for pipeline validation. Factor values scaled 0-100 from documented impact narrative (IMD rainfall 380mm/24h, Chorabari moraine-dammed lake breach, NDMA flash flood reports). NOT official measurements.",
+  "observed_severity_scale": "1 (minor) to 5 (catastrophic)",
+  "locations": [
+    {
+      "id": "K001",
+      "location_name": "Kedarnath",
+      "latitude": 30.7346,
+      "longitude": 79.0670,
+      "population": 1240,
+      "observed_severity": 5,
+      "observed_outcome": "Townside inundated by GLOF; large proportion of temporary population stranded; mandir precinct affected.",
+      "factors": {
+        "hazard_severity": 100,
+        "slope_risk": 85,
+        "population_exposure": 95,
+        "accessibility_risk": 92,
+        "facility_access_risk": 90,
+        "historical_event_risk": 85
+      }
+    },
+    {
+      "id": "K002",
+      "location_name": "Rambara",
+      "latitude": 30.7335,
+      "longitude": 79.0530,
+      "population": 5,
+      "observed_severity": 5,
+      "observed_outcome": "Settlement washed away; no longer a habitation.",
+      "factors": {
+        "hazard_severity": 98,
+        "slope_risk": 90,
+        "population_exposure": 80,
+        "accessibility_risk": 90,
+        "facility_access_risk": 90,
+        "historical_event_risk": 80
+      }
+    },
+    {
+      "id": "K003",
+      "location_name": "Gaurikund",
+      "latitude": 30.6503,
+      "longitude": 79.0433,
+      "population": 980,
+      "observed_severity": 4,
+      "observed_outcome": "Severely damaged; pilgrim route origin point, bridges washed out.",
+      "factors": {
+        "hazard_severity": 92,
+        "slope_risk": 75,
+        "population_exposure": 88,
+        "accessibility_risk": 82,
+        "facility_access_risk": 80,
+        "historical_event_risk": 78
+      }
+    },
+    {
+      "id": "K004",
+      "location_name": "Jungle Chatti",
+      "latitude": 30.7281,
+      "longitude": 79.0058,
+      "population": 6,
+      "observed_severity": 3,
+      "observed_outcome": "Trail-side halt damaged; no direct washout.",
+      "factors": {
+        "hazard_severity": 70,
+        "slope_risk": 78,
+        "population_exposure": 60,
+        "accessibility_risk": 85,
+        "facility_access_risk": 80,
+        "historical_event_risk": 60
+      }
+    },
+    {
+      "id": "K005",
+      "location_name": "Sonprayag",
+      "latitude": 30.6468,
+      "longitude": 79.0450,
+      "population": 1150,
+      "observed_severity": 3,
+      "observed_outcome": "Floodwater touch; some damage, population evacuated successfully.",
+      "factors": {
+        "hazard_severity": 68,
+        "slope_risk": 55,
+        "population_exposure": 72,
+        "accessibility_risk": 60,
+        "facility_access_risk": 58,
+        "historical_event_risk": 60
+      }
+    },
+    {
+      "id": "K006",
+      "location_name": "Phata",
+      "latitude": 30.6872,
+      "longitude": 79.0557,
+      "population": 760,
+      "observed_severity": 2,
+      "observed_outcome": "Minor flood throw; infrastructure mainly intact, used as evacuation staging point.",
+      "factors": {
+        "hazard_severity": 55,
+        "slope_risk": 50,
+        "population_exposure": 60,
+        "accessibility_risk": 52,
+        "facility_access_risk": 55,
+        "historical_event_risk": 45
+      }
+    }
+  ]
+}

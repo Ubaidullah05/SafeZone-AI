@@ -1,7 +1,7 @@
 {
   "name": "SafeLink-AI",
   "short_name": "SafeLink",
-  "description": "Disaster Response Command Center with Offline Mesh Communication",
+  "description": "Disaster evacuation and authority command center with offline capability",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0C0A1A",
@@ -30,9 +30,9 @@
       "description": "Submit an emergency SOS report"
     },
     {
-      "name": "Mesh Network",
-      "url": "/?tab=mesh",
-      "description": "View mesh network status"
+      "name": "Risk Map",
+      "url": "/",
+      "description": "View the habitation risk map"
     }
   ]
 }

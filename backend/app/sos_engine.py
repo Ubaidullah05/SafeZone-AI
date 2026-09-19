@@ -2,18 +2,18 @@
 SOS Engine
 ==========
 
-Processes citizen-submitted SOS reports, calculates priority scores,
-and provides aggregation by village.
+Processes citizen-submitted SOS reports (no account required), calculates
+priority scores, persists them to SQLite, and provides aggregation by village.
+
+The SQLite store replaces the old JSON file: reports now survive restarts and
+are the feed for both the ground-reality scoring and the learning engine.
 """
 
-import json
 import time
-from pathlib import Path
 from typing import Optional
 
+from . import db
 from .models import SOSReportInput, SOSReportResult, SOSPriorityItem
-
-DATA_DIR = Path(__file__).parent / "data"
 
 # Emergency type weights for priority calculation
 EMERGENCY_WEIGHTS = {
@@ -26,6 +26,8 @@ EMERGENCY_WEIGHTS = {
     "FIRE": 0.9,
     "OTHER": 0.5,
 }
+
+VALID_STATUSES = {"NEW", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED", "PENDING_SYNC"}
 
 
 def calculate_sos_priority(
@@ -46,24 +48,19 @@ def calculate_sos_priority(
                  + medical_bonus × 15
                  + recency_bonus × 15
     """
-    # Severity (1-5) mapped to 0-30
     severity_score = (severity / 5.0) * 30
 
-    # Emergency type weight mapped to 0-20
     type_weight = EMERGENCY_WEIGHTS.get(emergency_type, 0.5)
     type_score = type_weight * 20
 
-    # Population impact: ratio of affected to total, mapped to 0-20
     if total_village_population > 0:
         impact_ratio = min(people_affected / total_village_population, 1.0)
     else:
         impact_ratio = 0
     population_score = impact_ratio * 20
 
-    # Medical emergency bonus: 0 or 15
     medical_score = 15 if medical_emergency else 0
 
-    # Recency bonus: more recent = higher score (0-15)
     try:
         report_time = time.mktime(time.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ"))
         hours_ago = (time.time() - report_time) / 3600
@@ -75,25 +72,59 @@ def calculate_sos_priority(
     return round(min(total, 100), 1)
 
 
+def _generate_report_id(conn) -> str:
+    row = conn.execute(
+        "SELECT id FROM sos_reports ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    n = int(row["id"][3:]) + 1 if row and row["id"].startswith("SOS") else 1
+    return f"SOS{n:03d}"
+
+
 def load_sos_reports() -> list[dict]:
-    path = DATA_DIR / "sos_reports.json"
-    if not path.exists():
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    conn = db.get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM sos_reports ORDER BY priority_score DESC").fetchall()
+        reports = [dict(r) for r in rows]
+        for r in reports:
+            r["medical_emergency"] = bool(r["medical_emergency"])
+            r["reached_gateway"] = bool(r["reached_gateway"])
+        return reports
+    finally:
+        conn.close()
 
 
 def save_sos_reports(reports: list[dict]) -> None:
-    path = DATA_DIR / "sos_reports.json"
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(reports, f, indent=2, ensure_ascii=False)
+    """Compatibility shim: reports are persisted to SQLite by add/update
+    helpers; this no-op keeps old call sites working."""
+    del reports
+
+
+def get_reports_by_village(village_id: str) -> list[dict]:
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM sos_reports WHERE village_id=? ORDER BY priority_score DESC",
+            (village_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_reports_by_status(status: str) -> list[dict]:
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM sos_reports WHERE status=? ORDER BY priority_score DESC",
+            (status,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SOSReportResult:
-    """Add a new SOS report and return the enriched result."""
-    reports = load_sos_reports()
-    report_id = f"SOS{len(reports) + 1:03d}"
-
+    """Persist a new SOS report and return the enriched result."""
     priority = calculate_sos_priority(
         severity=report.severity,
         emergency_type=report.emergency_type,
@@ -102,83 +133,124 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
         total_village_population=village_population,
         timestamp=report.timestamp,
     )
+    timestamp = report.timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    new_report = {
-        "id": report_id,
-        "reporter_name": report.reporter_name,
-        "reporter_phone": report.reporter_phone,
-        "village_id": report.village_id,
-        "village_name": report.village_name,
-        "emergency_type": report.emergency_type,
-        "severity": report.severity,
-        "description": report.description,
-        "people_affected": report.people_affected,
-        "medical_emergency": report.medical_emergency,
-        "medical_details": report.medical_details,
-        "latitude": report.latitude,
-        "longitude": report.longitude,
-        "timestamp": report.timestamp,
-        "status": "NEW",
-        "priority_score": priority,
-        "relay_hops": 0,
-        "reached_gateway": False,
-    }
+    conn = db.get_conn()
+    try:
+        report_id = _generate_report_id(conn)
+        conn.execute(
+            "INSERT INTO sos_reports (id, reporter_name, reporter_phone, village_id, village_name, "
+            "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
+            "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                report_id,
+                report.reporter_name,
+                report.reporter_phone,
+                report.village_id,
+                report.village_name,
+                report.emergency_type,
+                report.severity,
+                report.description,
+                report.people_affected,
+                1 if report.medical_emergency else 0,
+                report.medical_details,
+                report.latitude,
+                report.longitude,
+                timestamp,
+                "NEW",
+                priority,
+                0,
+                0,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
-    reports.append(new_report)
-    save_sos_reports(reports)
+    return SOSReportResult(
+        id=report_id,
+        reporter_name=report.reporter_name,
+        reporter_phone=report.reporter_phone,
+        village_id=report.village_id,
+        village_name=report.village_name,
+        emergency_type=report.emergency_type,
+        severity=report.severity,
+        description=report.description,
+        people_affected=report.people_affected,
+        medical_emergency=report.medical_emergency,
+        medical_details=report.medical_details,
+        latitude=report.latitude,
+        longitude=report.longitude,
+        timestamp=timestamp,
+        status="NEW",
+        priority_score=priority,
+        relay_hops=0,
+        reached_gateway=False,
+    )
 
-    return SOSReportResult(**new_report)
 
-
-def get_reports_by_village(village_id: str) -> list[dict]:
-    reports = load_sos_reports()
-    return [r for r in reports if r["village_id"] == village_id]
-
-
-def get_reports_by_status(status: str) -> list[dict]:
-    reports = load_sos_reports()
-    return [r for r in reports if r["status"] == status]
-
-
-def update_report_status(report_id: str, new_status: str) -> Optional[dict]:
-    reports = load_sos_reports()
-    for r in reports:
-        if r["id"] == report_id:
-            r["status"] = new_status
-            save_sos_reports(reports)
-            return r
-    return None
+def update_report_status(report_id: str, new_status: str, adjudicated_by: str = None) -> Optional[dict]:
+    """Update report status (authority action). Returns the updated report."""
+    if new_status.upper() not in VALID_STATUSES:
+        raise ValueError(f"Invalid status '{new_status}'")
+    conn = db.get_conn()
+    try:
+        row = conn.execute("SELECT * FROM sos_reports WHERE id=?", (report_id,)).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "UPDATE sos_reports SET status=?, adjudicated_by=COALESCE(adjudicated_by, ?) WHERE id=?",
+            (new_status.upper(), adjudicated_by, report_id),
+        )
+        conn.commit()
+        updated = conn.execute("SELECT * FROM sos_reports WHERE id=?", (report_id,)).fetchone()
+        result = dict(updated)
+        result["medical_emergency"] = bool(result["medical_emergency"])
+        result["reached_gateway"] = bool(result["reached_gateway"])
+        return result
+    finally:
+        conn.close()
 
 
 def get_priority_queue() -> list[SOSPriorityItem]:
     """Return all active (non-resolved) reports sorted by priority."""
-    reports = load_sos_reports()
-    active = [r for r in reports if r["status"] != "RESOLVED"]
-    active.sort(key=lambda r: r["priority_score"], reverse=True)
-
-    return [
-        SOSPriorityItem(
-            report_id=r["id"],
-            village_id=r["village_id"],
-            village_name=r["village_name"],
-            emergency_type=r["emergency_type"],
-            severity=r["severity"],
-            people_affected=r["people_affected"],
-            medical_emergency=r["medical_emergency"],
-            priority_score=r["priority_score"],
-            status=r["status"],
-            timestamp=r["timestamp"],
-        )
-        for r in active
-    ]
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM sos_reports WHERE status != 'RESOLVED' ORDER BY priority_score DESC"
+        ).fetchall()
+        return [
+            SOSPriorityItem(
+                report_id=r["id"],
+                village_id=r["village_id"],
+                village_name=r["village_name"],
+                emergency_type=r["emergency_type"],
+                severity=r["severity"],
+                people_affected=r["people_affected"],
+                medical_emergency=bool(r["medical_emergency"]),
+                priority_score=r["priority_score"],
+                status=r["status"],
+                timestamp=r["timestamp"],
+            )
+            for r in rows
+        ]
+    finally:
+        conn.close()
 
 
 def aggregate_by_village() -> dict:
     """Aggregate SOS data per village for Ground Reality scoring."""
-    reports = load_sos_reports()
-    village_data = {}
+    conn = db.get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM sos_reports WHERE status != 'RESOLVED' ORDER BY timestamp ASC"
+        ).fetchall()
+    finally:
+        conn.close()
 
-    for r in reports:
+    village_data = {}
+    for r in rows:
         vid = r["village_id"]
         if vid not in village_data:
             village_data[vid] = {
@@ -192,11 +264,9 @@ def aggregate_by_village() -> dict:
                 "emergency_types": set(),
                 "latest_timestamp": r["timestamp"],
             }
-
         v = village_data[vid]
         v["total_reports"] += 1
-        if r["status"] != "RESOLVED":
-            v["active_reports"] += 1
+        v["active_reports"] += 1
         v["total_severity"] += r["severity"]
         v["total_people_affected"] += r["people_affected"]
         if r["medical_emergency"]:
@@ -205,9 +275,8 @@ def aggregate_by_village() -> dict:
         if r["timestamp"] > v["latest_timestamp"]:
             v["latest_timestamp"] = r["timestamp"]
 
-    # Convert sets to lists for JSON serialization
     for v in village_data.values():
-        v["emergency_types"] = list(v["emergency_types"])
+        v["emergency_types"] = list(v["emergency_types"]) if v["emergency_types"] else []
         v["avg_severity"] = round(v["total_severity"] / max(v["total_reports"], 1), 1)
 
     return village_data
