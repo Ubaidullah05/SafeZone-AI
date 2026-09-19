@@ -249,4 +249,5 @@ def public_user(user: dict) -> dict:
         "email": user["email"],
         "role": user["role"],
         "department": user.get("department", ""),
+        "pin_enabled": bool(user.get("pin_hash")),
     }

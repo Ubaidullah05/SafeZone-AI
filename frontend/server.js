@@ -34,21 +34,22 @@ proxy.on('error', (err, req, res) => {
   }
 })
 
-const server = createServer((req, res) => {
-  const parsedUrl = parse(req.url, true)
-  const { pathname } = parsedUrl
+// Strip the query string to get the pathname without requiring node:url.
+const pathname = (url) => (url || '').split('?')[0]
 
-  if (pathname.startsWith('/api')) {
+const server = createServer((req, res) => {
+  const p = pathname(req.url)
+
+  if (p.startsWith('/api')) {
     proxy.web(req, res)
   } else {
-    handle(req, res, parsedUrl)
+    handle(req, res)
   }
 })
 
 // WebSocket upgrade for /ws/alerts
 server.on('upgrade', (req, socket, head) => {
-  const { pathname } = parse(req.url, true)
-  if (pathname.startsWith('/ws')) {
+  if (pathname(req.url).startsWith('/ws')) {
     proxy.ws(req, socket, head)
   } else {
     socket.destroy()

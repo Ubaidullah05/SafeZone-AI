@@ -147,33 +147,50 @@ export interface AdvisoryProposal {
 export interface AdvisoryItem {
   village_id: string
   village_name: string
-  risk_level: RiskLevel
-  risk_score: number
-  action: string
-  action_label?: string
-  rationale: string[]
-  active_sos: number
-  medical: number
+  /** The action code e.g. "NO_ACTION" | "MONITOR" | "REVIEW_EVACUATION" | "PREFERENTIAL_RELOCATION" */
+  recommended_action: string
+  recommended_action_label: string
+  confidence: number
+  evidence: string[]
+  reasoning: string
+  caveats: string[]
   proposed_relocation: AdvisoryProposal | null
+  verdict: string
+  verdict_note: string
+  // Legacy aliases kept for backwards compat — prefer recommended_action / evidence
+  action?: string
+  action_label?: string
+  rationale?: string[]
+  active_sos?: number
+  medical?: number
+}
+
+export interface DistrictAdvisory {
+  recommended_action: string
+  recommended_action_label: string
+  confidence: number
+  evidence: string[]
+  verdict: string
+  verdict_note: string
 }
 
 export interface AdvisoryResponse {
-  district: {
-    district_status: string
-    advisories: string[]
-    active_alerts: number
-  }
+  district: DistrictAdvisory
   habitations: AdvisoryItem[]
   generated_at: string
 }
 
 export interface LearningState {
-  observations: number
+  /** Primary field from backend stats() */
+  n_observations: number
   confidence: number
   weights: Record<string, number>
-  alpha_lr: number
+  prior?: Record<string, number>
+  learning_rate?: number
   updated_at?: string
-  n_observations?: number
+  /** Legacy aliases */
+  observations?: number
+  alpha_lr?: number
 }
 
 export interface BacktestRow {
