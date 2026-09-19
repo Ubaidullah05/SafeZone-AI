@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Dashboard from './Dashboard'
 import * as api from '../services/api'
-import { RAW_SAFE_ZONES, RAW_VILLAGES, runFallbackRecommendation, runFallbackScenario, runPipeline } from '../data/fallbackData'
 import type { RecommendationResult, RiskSummary, SafeZoneResult, ScenarioAdjustments, ScenarioComparison, ScenarioResult, VillageResult } from '../types'
 
 export default function AppDashboard() {
@@ -23,7 +22,8 @@ export default function AppDashboard() {
 
     async function loadInitialData() {
       try {
-        const [v, sz, summary] = await Promise.all([
+        const [health, v, sz, summary] = await Promise.all([
+          api.checkHealth(),
           api.fetchVillages(),
           api.fetchSafeZones(),
           api.fetchRiskSummary(),
@@ -31,14 +31,21 @@ export default function AppDashboard() {
         setVillages(v)
         setSafeZones(sz)
         setRiskSummary(summary)
-        setIsDemoMode(false)
+        setIsDemoMode(health.mode === 'demo-data')
         api.fetchAndCacheManifest().catch(() => {})
       } catch {
-        const pipeline = runPipeline(RAW_VILLAGES, RAW_SAFE_ZONES)
-        setVillages(pipeline.villages)
-        setSafeZones(pipeline.safeZones)
-        setRiskSummary(pipeline.summary)
-        setIsDemoMode(true)
+        // Backend unreachable — try offline cache
+        try {
+          const cachedV = await import('../services/offlineCache').then(m => m.getCachedVillages())
+          const cachedSZ = await import('../services/offlineCache').then(m => m.getCachedSafeZones())
+          if (cachedV && cachedV.length > 0) {
+            setVillages(cachedV)
+            setSafeZones(cachedSZ || [])
+            setIsDemoMode(true)
+          }
+        } catch {
+          // No cache available
+        }
       } finally {
         setIsLoading(false)
       }
@@ -59,13 +66,13 @@ export default function AppDashboard() {
   const handleFindSafeZone = useCallback(async (villageId: string) => {
     setIsLoadingRecommendation(true)
     try {
-      setRecommendation(isDemoMode ? runFallbackRecommendation(villageId) : await api.fetchRecommendation(villageId))
+      setRecommendation(await api.fetchRecommendation(villageId))
     } catch {
-      setRecommendation(runFallbackRecommendation(villageId))
+      setRecommendation(null)
     } finally {
       setIsLoadingRecommendation(false)
     }
-  }, [isDemoMode])
+  }, [])
 
   const applyScenarioResult = useCallback((result: ScenarioResult) => {
     setVillages(result.villages)
@@ -77,13 +84,13 @@ export default function AppDashboard() {
   const handleRunScenario = useCallback(async (params: ScenarioAdjustments) => {
     setIsRunningScenario(true)
     try {
-      applyScenarioResult(isDemoMode ? runFallbackScenario(params) : await api.runScenario(params))
+      applyScenarioResult(await api.runScenario(params))
     } catch {
-      applyScenarioResult(runFallbackScenario(params))
+      // Scenario failed — keep current state
     } finally {
       setIsRunningScenario(false)
     }
-  }, [isDemoMode, applyScenarioResult])
+  }, [applyScenarioResult])
 
   if (isLoading || !riskSummary) {
     return (

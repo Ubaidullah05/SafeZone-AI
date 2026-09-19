@@ -118,8 +118,8 @@ export async function fetchUsers(): Promise<AuthUser[]> {
 }
 
 // ---- Core (with offline fallback) ----
-export async function checkHealth(): Promise<{ status: string }> {
-  const { data } = await client.get<{ status: string }>('/api/health')
+export async function checkHealth(): Promise<{ status: string; mode?: string }> {
+  const { data } = await client.get<{ status: string; mode?: string }>('/api/health')
   return data
 }
 

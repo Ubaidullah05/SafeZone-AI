@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import SOSReportForm from './SOSReportForm'
 import * as api from '../services/api'
-import { RAW_VILLAGES, RAW_SAFE_ZONES, runPipeline } from '../data/fallbackData'
 import type { BacktestResponse, LearningState, SafeZoneResult, SOSLatestItem, VillageResult } from '../types'
 
 const RiskMap = lazy(() => import('./RiskMap'))
@@ -42,10 +41,7 @@ export default function PublicView() {
         setLatest(latestData || [])
         setOffline(false)
       } catch {
-        const pipeline = runPipeline(RAW_VILLAGES, RAW_SAFE_ZONES)
         if (!mounted) return
-        setVillages(pipeline.villages)
-        setSafeZones(pipeline.safeZones)
         setOffline(true)
       }
     }

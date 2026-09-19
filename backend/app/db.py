@@ -107,6 +107,35 @@ CREATE TABLE IF NOT EXISTS auth_attempts (
     created_at REAL NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS villages (
+    id                    TEXT PRIMARY KEY,
+    name                  TEXT NOT NULL,
+    latitude              REAL NOT NULL,
+    longitude             REAL NOT NULL,
+    population            INTEGER NOT NULL,
+    hazard_severity       REAL NOT NULL DEFAULT 0,
+    slope_risk            REAL NOT NULL DEFAULT 0,
+    population_exposure   REAL NOT NULL DEFAULT 0,
+    accessibility_risk    REAL NOT NULL DEFAULT 0,
+    facility_access_risk  REAL NOT NULL DEFAULT 0,
+    historical_event_risk REAL NOT NULL DEFAULT 0,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS safe_zones (
+    id                TEXT PRIMARY KEY,
+    name              TEXT NOT NULL,
+    latitude          REAL NOT NULL,
+    longitude         REAL NOT NULL,
+    capacity          INTEGER NOT NULL,
+    medical_access    REAL NOT NULL DEFAULT 0,
+    safety_score      REAL NOT NULL DEFAULT 0,
+    road_access_score REAL NOT NULL DEFAULT 0,
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_sos_status ON sos_reports(status);
 CREATE INDEX IF NOT EXISTS idx_sos_village ON sos_reports(village_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_email_time ON auth_attempts(email, created_at);
@@ -124,6 +153,10 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _is_demo_mode() -> bool:
+    return os.environ.get("SAFEZONE_DEMO_MODE", "0") == "1"
+
+
 def get_conn() -> sqlite3.Connection:
     """Open a fresh connection. Uses WAL for concurrent readers/writers.
     Lazily initialises schema + first-run seed so any module can safely
@@ -136,7 +169,7 @@ def get_conn() -> sqlite3.Connection:
                 try:
                     conn.executescript(SCHEMA)
                     _seed_model_state(conn)
-                    if not os.environ.get("SAFEZONE_SKIP_SEED"):
+                    if _is_demo_mode() and not os.environ.get("SAFEZONE_SKIP_SEED"):
                         _seed_demo_sos(conn)
                         _seed_users(conn)
                     conn.commit()
@@ -298,5 +331,100 @@ def set_state(key: str, value) -> None:
             (key, json.dumps(value)),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Villages and safe zones (database-backed)
+# ---------------------------------------------------------------------------
+
+def has_villages() -> bool:
+    """Check if villages table has data."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT 1 FROM villages LIMIT 1").fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def insert_villages(villages: list[dict]) -> int:
+    """Insert or replace villages. Returns count inserted."""
+    conn = get_conn()
+    try:
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        count = 0
+        for v in villages:
+            conn.execute(
+                "INSERT OR REPLACE INTO villages "
+                "(id, name, latitude, longitude, population, hazard_severity, slope_risk, "
+                "population_exposure, accessibility_risk, facility_access_risk, historical_event_risk, "
+                "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    v["id"], v["name"], v["latitude"], v["longitude"], v["population"],
+                    v.get("hazard_severity", 0), v.get("slope_risk", 0),
+                    v.get("population_exposure", 0), v.get("accessibility_risk", 0),
+                    v.get("facility_access_risk", 0), v.get("historical_event_risk", 0),
+                    now, now,
+                ),
+            )
+            count += 1
+        conn.commit()
+        return count
+    finally:
+        conn.close()
+
+
+def get_villages_from_db() -> list[dict]:
+    """Load all villages from database."""
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM villages ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def has_safe_zones() -> bool:
+    """Check if safe_zones table has data."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT 1 FROM safe_zones LIMIT 1").fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def insert_safe_zones(zones: list[dict]) -> int:
+    """Insert or replace safe zones. Returns count inserted."""
+    conn = get_conn()
+    try:
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        count = 0
+        for z in zones:
+            conn.execute(
+                "INSERT OR REPLACE INTO safe_zones "
+                "(id, name, latitude, longitude, capacity, medical_access, safety_score, "
+                "road_access_score, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    z["id"], z["name"], z["latitude"], z["longitude"], z["capacity"],
+                    z.get("medical_access", 0), z.get("safety_score", 0),
+                    z.get("road_access_score", 0), now, now,
+                ),
+            )
+            count += 1
+        conn.commit()
+        return count
+    finally:
+        conn.close()
+
+
+def get_safe_zones_from_db() -> list[dict]:
+    """Load all safe zones from database."""
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM safe_zones ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()

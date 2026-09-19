@@ -120,10 +120,12 @@ def require_official(authorization: Optional[str] = Header(None)) -> dict:
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 def health():
+    import os
+    is_demo = os.environ.get("SAFEZONE_DEMO_MODE", "0") == "1"
     return {
         "status": "ok",
         "service": "SafeLink - AI backend",
-        "mode": "demo-data",
+        "mode": "demo-data" if is_demo else "real-data",
         "pipeline": "risk -> vulnerability -> relocation -> capacity -> destination",
     }
 

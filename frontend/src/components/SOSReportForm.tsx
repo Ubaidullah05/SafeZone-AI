@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertTriangle, MapPin, Users, Heart, Send, X } from 'lucide-react'
 import * as api from '../services/api'
-import { RAW_VILLAGES } from '../data/fallbackData'
+import type { VillageResult } from '../types'
 
 const EMERGENCY_TYPES = [
   { value: 'FLOOD', label: 'Flood', icon: '🌊' },
@@ -43,6 +43,7 @@ interface SOSReportFormProps {
 }
 
 export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps) {
+  const [villages, setVillages] = useState<VillageResult[]>([])
   const [form, setForm] = useState<SOSForm>({
     reporter_name: '',
     reporter_phone: '',
@@ -61,8 +62,12 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    api.fetchVillages().then(setVillages).catch(() => {})
+  }, [])
+
   const handleVillageChange = (villageId: string) => {
-    const village = RAW_VILLAGES.find(v => v.id === villageId)
+    const village = villages.find(v => v.id === villageId)
     if (village) {
       setForm(f => ({
         ...f,
@@ -184,7 +189,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
               className="w-full rounded-xl border border-theme bg-input px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
             >
               <option value="" className="bg-panel">Select affected village…</option>
-              {RAW_VILLAGES.map(v => (
+              {villages.map(v => (
                 <option key={v.id} value={v.id} className="bg-panel">{v.name}</option>
               ))}
             </select>

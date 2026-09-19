@@ -29,7 +29,7 @@ export default function Header({ isDemoMode, sosActiveCount }: { isDemoMode: boo
       <div className="flex items-center gap-4">
         {isDemoMode && (
           <span className="rounded-full border border-golden/20 bg-golden/10 px-3 py-1 font-mono text-2xs font-medium text-golden">
-            ⚡ OFFLINE MODE
+            ⚡ DEMO MODE
           </span>
         )}
         <div className="flex items-center gap-2 rounded-full border border-danger/20 bg-danger/10 px-3 py-1">

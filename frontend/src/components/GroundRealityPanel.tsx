@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { fetchGroundReality, fetchOperationalPriority } from '../services/api'
 import type { GroundRealityResult, OperationalPriorityItem } from '../types'
 
-/* ── Inline demo data fallback ── */
 interface GroundRow extends GroundRealityResult {
   village?: string
   ground_score?: number
@@ -19,128 +18,9 @@ interface OpRow extends OperationalPriorityItem {
   recommended_action: string
 }
 
-const DEMO_GROUND_REALITY: GroundRow[] = [
-  {
-    village_id: 'V008', village_name: 'Amrapur', latitude: 30.203, longitude: 78.46, population: 3890,
-    predicted_risk_score: 92.4, predicted_risk_level: 'CRITICAL',
-    sos_intensity: 100.0, report_density: 86.2, severity_aggregate: 100.0, medical_urgency: 25.0,
-    ground_reality_score: 84.2, operational_priority: 'IMMEDIATE',
-    total_sos_reports: 3, active_sos_reports: 3, people_affected_by_sos: 3928, medical_emergencies: 1,
-    emergency_types: ['FLOOD', 'TRAPPED'] as string[],
-    explanation: ['High hazard severity', 'Critical accessibility risk'],
-  },
-  {
-    village_id: 'V011', village_name: 'Bhairavgarh', latitude: 30.219, longitude: 78.495, population: 1850,
-    predicted_risk_score: 78.6, predicted_risk_level: 'HIGH',
-    sos_intensity: 90.0, report_density: 72.8, severity_aggregate: 80.0, medical_urgency: 100.0,
-    ground_reality_score: 76.5, operational_priority: 'URGENT',
-    total_sos_reports: 2, active_sos_reports: 2, people_affected_by_sos: 241, medical_emergencies: 1,
-    emergency_types: ['MEDICAL', 'FLOOD'] as string[],
-    explanation: ['High hazard severity', 'Medical emergency reported'],
-  },
-  {
-    village_id: 'V001', village_name: 'Sundarpur', latitude: 30.121, longitude: 78.451, population: 2100,
-    predicted_risk_score: 85.3, predicted_risk_level: 'CRITICAL',
-    sos_intensity: 80.0, report_density: 64.3, severity_aggregate: 70.0, medical_urgency: 0.0,
-    ground_reality_score: 68.4, operational_priority: 'HIGH',
-    total_sos_reports: 3, active_sos_reports: 2, people_affected_by_sos: 156, medical_emergencies: 0,
-    emergency_types: ['FLOOD'] as string[],
-    explanation: ['Critical hazard severity', 'Multiple flood reports'],
-  },
-  {
-    village_id: 'V006', village_name: 'Nandagaon', latitude: 30.188, longitude: 78.418, population: 1500,
-    predicted_risk_score: 72.1, predicted_risk_level: 'HIGH',
-    sos_intensity: 70.0, report_density: 55.4, severity_aggregate: 80.0, medical_urgency: 100.0,
-    ground_reality_score: 65.3, operational_priority: 'HIGH',
-    total_sos_reports: 2, active_sos_reports: 2, people_affected_by_sos: 121, medical_emergencies: 1,
-    emergency_types: ['ROAD_BLOCKED', 'MEDICAL'] as string[],
-    explanation: ['Road blocked', 'Medical evacuation needed'],
-  },
-  {
-    village_id: 'V009', village_name: 'Lakshmangarh', latitude: 30.132, longitude: 78.398, population: 1200,
-    predicted_risk_score: 68.5, predicted_risk_level: 'HIGH',
-    sos_intensity: 70.0, report_density: 48.7, severity_aggregate: 60.0, medical_urgency: 0.0,
-    ground_reality_score: 55.8, operational_priority: 'HIGH',
-    total_sos_reports: 2, active_sos_reports: 2, people_affected_by_sos: 43, medical_emergencies: 0,
-    emergency_types: ['FLOOD', 'TRAPPED'] as string[],
-    explanation: ['Moderate hazard', 'Trapped people reported'],
-  },
-  {
-    village_id: 'V004', village_name: 'Kailashpur', latitude: 30.162, longitude: 78.505, population: 980,
-    predicted_risk_score: 58.2, predicted_risk_level: 'MODERATE',
-    sos_intensity: 40.0, report_density: 25.3, severity_aggregate: 60.0, medical_urgency: 100.0,
-    ground_reality_score: 44.1, operational_priority: 'MODERATE',
-    total_sos_reports: 1, active_sos_reports: 1, people_affected_by_sos: 1, medical_emergencies: 1,
-    emergency_types: ['MEDICAL'] as string[],
-    explanation: ['Medical emergency', 'Moderate risk'],
-  },
-  {
-    village_id: 'V002', village_name: 'Ganganagar', latitude: 30.145, longitude: 78.472, population: 2500,
-    predicted_risk_score: 74.8, predicted_risk_level: 'HIGH',
-    sos_intensity: 30.0, report_density: 40.6, severity_aggregate: 60.0, medical_urgency: 0.0,
-    ground_reality_score: 43.6, operational_priority: 'MODERATE',
-    total_sos_reports: 1, active_sos_reports: 1, people_affected_by_sos: 800, medical_emergencies: 0,
-    emergency_types: ['WATER_SHORTAGE'] as string[],
-    explanation: ['Water shortage', 'High population exposure'],
-  },
-  {
-    village_id: 'V012', village_name: 'Manikpur', latitude: 30.088, longitude: 78.47, population: 800,
-    predicted_risk_score: 52.3, predicted_risk_level: 'MODERATE',
-    sos_intensity: 30.0, report_density: 22.1, severity_aggregate: 60.0, medical_urgency: 0.0,
-    ground_reality_score: 37.2, operational_priority: 'MODERATE',
-    total_sos_reports: 1, active_sos_reports: 1, people_affected_by_sos: 14, medical_emergencies: 0,
-    emergency_types: ['TRAPPED'] as string[],
-    explanation: ['Trapped people', 'Moderate accessibility risk'],
-  },
-  {
-    village_id: 'V003', village_name: 'Rishikot', latitude: 30.098, longitude: 78.433, population: 1100,
-    predicted_risk_score: 48.7, predicted_risk_level: 'MODERATE',
-    sos_intensity: 10.0, report_density: 18.5, severity_aggregate: 40.0, medical_urgency: 0.0,
-    ground_reality_score: 29.3, operational_priority: 'LOW',
-    total_sos_reports: 1, active_sos_reports: 0, people_affected_by_sos: 0, medical_emergencies: 0,
-    emergency_types: ['WATER_SHORTAGE'] as string[],
-    explanation: ['Resolved water shortage'],
-  },
-  {
-    village_id: 'V010', village_name: 'Champawali', latitude: 30.055, longitude: 78.445, population: 650,
-    predicted_risk_score: 35.4, predicted_risk_level: 'MODERATE',
-    sos_intensity: 0.0, report_density: 0.0, severity_aggregate: 0.0, medical_urgency: 0.0,
-    ground_reality_score: 12.4, operational_priority: 'LOW',
-    total_sos_reports: 0, active_sos_reports: 0, people_affected_by_sos: 0, medical_emergencies: 0,
-    emergency_types: [] as string[],
-    explanation: ['No active reports'],
-  },
-  {
-    village_id: 'V007', village_name: 'Shivpuri', latitude: 30.109, longitude: 78.52, population: 750,
-    predicted_risk_score: 42.1, predicted_risk_level: 'MODERATE',
-    sos_intensity: 10.0, report_density: 12.3, severity_aggregate: 40.0, medical_urgency: 0.0,
-    ground_reality_score: 22.8, operational_priority: 'LOW',
-    total_sos_reports: 1, active_sos_reports: 0, people_affected_by_sos: 0, medical_emergencies: 0,
-    emergency_types: ['ROAD_BLOCKED'] as string[],
-    explanation: ['Resolved road blockage'],
-  },
-  {
-    village_id: 'V005', village_name: 'Devigram', latitude: 30.075, longitude: 78.489, population: 550,
-    predicted_risk_score: 38.9, predicted_risk_level: 'MODERATE',
-    sos_intensity: 0.0, report_density: 0.0, severity_aggregate: 0.0, medical_urgency: 0.0,
-    ground_reality_score: 13.6, operational_priority: 'LOW',
-    total_sos_reports: 0, active_sos_reports: 0, people_affected_by_sos: 0, medical_emergencies: 0,
-    emergency_types: [] as string[],
-    explanation: ['No active reports'],
-  },
-]
-
-const DEMO_PRIORITY: OpRow[] = [
-  { village_id: 'V008', village_name: 'Amrapur', predicted_risk: 92.4, ground_reality_score: 84.2, operational_priority: 'IMMEDIATE', active_sos_reports: 3, people_affected: 3928, medical_emergencies: 1, population: 3890, rank: 1, priority_score: 84.2, risk_delta: -8.2, critical_sos: 1, recommended_action: 'IMMEDIATE_EVACUATION' },
-  { village_id: 'V011', village_name: 'Bhairavgarh', predicted_risk: 78.6, ground_reality_score: 76.5, operational_priority: 'URGENT', active_sos_reports: 2, people_affected: 241, medical_emergencies: 1, population: 1850, rank: 2, priority_score: 76.5, risk_delta: -2.1, critical_sos: 1, recommended_action: 'MEDICAL_TEAM_DISPATCH' },
-  { village_id: 'V001', village_name: 'Sundarpur', predicted_risk: 85.3, ground_reality_score: 68.4, operational_priority: 'HIGH', active_sos_reports: 2, people_affected: 156, medical_emergencies: 0, population: 2100, rank: 3, priority_score: 68.4, risk_delta: -16.9, critical_sos: 0, recommended_action: 'RESCUE_TEAM_DEPLOY' },
-  { village_id: 'V006', village_name: 'Nandagaon', predicted_risk: 72.1, ground_reality_score: 65.3, operational_priority: 'HIGH', active_sos_reports: 2, people_affected: 121, medical_emergencies: 1, population: 1500, rank: 4, priority_score: 65.3, risk_delta: -6.8, critical_sos: 0, recommended_action: 'ROAD_CLEARANCE' },
-  { village_id: 'V009', village_name: 'Lakshmangarh', predicted_risk: 68.5, ground_reality_score: 55.8, operational_priority: 'HIGH', active_sos_reports: 2, people_affected: 43, medical_emergencies: 0, population: 1200, rank: 5, priority_score: 55.8, risk_delta: -12.7, critical_sos: 0, recommended_action: 'RESCUE_TEAM_DEPLOY' },
-]
-
 export default function GroundRealityPanel() {
-  const [groundData, setGroundData] = useState<GroundRow[]>(DEMO_GROUND_REALITY)
-  const [priorityData, setPriorityData] = useState<OpRow[]>(DEMO_PRIORITY)
+  const [groundData, setGroundData] = useState<GroundRow[]>([])
+  const [priorityData, setPriorityData] = useState<OpRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -154,10 +34,10 @@ export default function GroundRealityPanel() {
         setGroundData(gr as GroundRow[])
       }
       if (op && op.length > 0) {
-        setPriorityData((op as OpRow[]).length ? op as OpRow[] : DEMO_PRIORITY)
+        setPriorityData(op as OpRow[])
       }
     } catch (e) {
-      console.warn('Backend offline — using demo data:', (e as Error).message)
+      console.warn('Backend offline — data unavailable:', (e as Error).message)
     } finally {
       setLoading(false)
     }
@@ -167,6 +47,15 @@ export default function GroundRealityPanel() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (groundData.length === 0 && priorityData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center">
+        <p className="text-lg text-surface-400">No data available</p>
+        <p className="text-sm text-surface-500 mt-1">Backend may be offline or no reports have been submitted yet.</p>
       </div>
     )
   }

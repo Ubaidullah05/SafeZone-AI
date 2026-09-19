@@ -3,7 +3,7 @@ import { Zap, RotateCcw } from 'lucide-react'
 import { fmtNumber, fmtSigned } from '../utils'
 import type { ScenarioAdjustments, ScenarioComparison } from '../types'
 
-const DEMO_SCENARIO: ScenarioAdjustments = {
+const EXAMPLE_SCENARIO: ScenarioAdjustments = {
   hazard_severity_delta_pct: 20,
   rainfall_intensity_delta_pct: 30,
   population_exposure_delta_pct: 10,
@@ -55,7 +55,7 @@ export default function ScenarioSimulator({ onRunScenario, comparison, isRunning
         <div className="mb-3 flex items-center justify-between">
           <p className="font-mono text-xs uppercase tracking-widest text-surface-500">What If Things Change</p>
           <button
-            onClick={() => setParams(DEMO_SCENARIO)}
+            onClick={() => setParams(EXAMPLE_SCENARIO)}
             className="font-mono text-xs uppercase tracking-wide text-golden hover:text-amber-400 transition-colors"
           >
             Load demo scenario
