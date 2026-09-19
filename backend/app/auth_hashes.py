@@ -7,7 +7,6 @@ Demo credentials are created the first time the database is initialised:
   admin@safezone.gov    / Safezone@123   (District Admin, fast-access PIN 1234)
   official@safezone.gov / Safezone@123   (Relief Official, fast-access PIN 1234)
   volunteer@safezone.gov / Safezone@123  (Field Volunteer)
-  rethikas2782@gmail.com / 1234          (Demo Admin)
 
 Real deployments should ignore this file or set SAFEZONE_SKIP_SEED=1.
 """
@@ -49,15 +48,6 @@ def seed_demo_users(conn) -> None:
             "role": "VOLUNTEER",
             "pin": None,
             "department": "Field Response Team",
-        },
-        {
-            "id": "USR004",
-            "name": "Rethika",
-            "email": "rethikas2782@gmail.com",
-            "password": "1234",
-            "role": "ADMIN",
-            "pin": None,
-            "department": "SIH Team",
         },
     ]
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
