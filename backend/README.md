@@ -37,7 +37,7 @@ Suite: `tests/conftest.py` (per-test temp SQLite DB + login fixtures), `test_aut
 | `app/models.py` | Pydantic request/response models |
 | `app/db.py` | SQLite init/schema/migrations, connection helper |
 | `app/auth.py` | JWT issue/verify, `require_role` / user dependencies |
-| `app/auth_hashes.py` | HMAC-hashed demo credentials used during seeding |
+| `app/auth_hashes.py` | bcrypt-hashed demo credentials used during seeding |
 | `app/roles.py` | ADMIN / OFFICIAL / VOLUNTEER role constants |
 | `app/data_loader.py` | Loads `app/data/*.json` sample data + census CSV / hazard GeoJSON inputs |
 | `app/risk_engine.py` | Weighted risk score + risk level + factor breakdown |

@@ -39,11 +39,10 @@ A **What-If Scenario Simulator** lets a user drag hazard severity / rainfall int
 
 ## Tech Stack
 
-**Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, React-Leaflet 5 / Leaflet, Framer Motion, Lucide React, `idb` (IndexedDB), custom Node proxy (`server.js`), PWA service worker
+**Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, React-Leaflet 5 / Leaflet, Framer Motion, Lucide React, Axios, `idb` (IndexedDB), custom Node proxy (`server.js`), PWA service worker
 
-**Backend:** Python 3.13, FastAPI, Pydantic, Uvicorn, JWT auth, SQLite (via stdlib `sqlite3`), WebSockets
+**Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, SQLite (stdlib `sqlite3`), WebSockets
 
-**Data processing:** NumPy, Pandas
 **Data (MVP):** JSON sample data + SQLite; accepts CSV (census) and GeoJSON (hazard layers) inputs so real datasets can be swapped in without touching the engines.
 
 ## Architecture
@@ -55,7 +54,7 @@ A **What-If Scenario Simulator** lets a user drag hazard severity / rainfall int
              │            custom server.js                   │
              │     proxies /api and /ws → backend            │
              └──────────────────────┬───────────────────────┘
-                                    │ REST (fetch/axios) + WS
+                                    │ REST (Axios) + WS
                                     ▼
              ┌─────────────────────────────────────────────┐
              │            FastAPI backend (:8000)           │
@@ -110,7 +109,7 @@ frontend/
 
 ### Prerequisites
 
-- Node.js ≥ 18 (WebSocket globals require ≥ 21 for some tooling)
+- Node.js ≥ 18.18 (Node ≥ 21 recommended for newer tooling)
 - Python 3.11+
 - Backend running on `:8000` for live features (demo fallback works without it)
 
@@ -140,7 +139,7 @@ npm install
 npm run dev
 ```
 
-Runs at http://127.0.0.1:3000. `server.js` proxies `/api` and `/ws` to `http://127.0.0.1:8000` by default — override with `BACKEND_URL=http://host:port npm run dev` (or `PORT=3001` to change the app port).
+Runs at http://127.0.0.1:3000. `server.js` proxies `/api` and `/ws` to `http://127.0.0.1:8000` by default — override with `BACKEND_URL=http://host:port npm run dev` (or `PORT=3001` to change the app port). Set `NEXT_PUBLIC_API_URL` to point the React client at a remote API instead of the same-origin proxy.
 
 - `npm run build` — Next.js production build
 - `npm run start` — production server
@@ -153,6 +152,7 @@ Runs at http://127.0.0.1:3000. `server.js` proxies `/api` and `/ws` to `http://1
 | `admin@safezone.gov` | `Safezone@123` | `1234` | ADMIN |
 | `official@safezone.gov` | `Safezone@123` | `1234` | OFFICIAL |
 | `volunteer@safezone.gov` | `Safezone@123` | — | VOLUNTEER |
+| `rethikas2782@gmail.com` | `1234` | — | ADMIN |
 
 ## API
 
