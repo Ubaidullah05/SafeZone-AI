@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 import psycopg2
-from psycopg2.extras import RealDictRow
+from psycopg2.extras import DictCursor
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -44,16 +44,18 @@ def _conn_str() -> str:
 
 def _connect():
     """Open a raw PostgreSQL connection."""
-    conn = psycopg2.connect(_conn_str(), cursor_factory=RealDictRow)
+    conn = psycopg2.connect(_conn_str(), cursor_factory=DictCursor)
     conn.autocommit = False
     return conn
 
 
 def _executescript(conn, schema_sql: str) -> None:
     """Execute a multi-statement SQL string."""
+    cur = conn.cursor()
     statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
     for stmt in statements:
-        conn.cursor().execute(stmt)
+        cur.execute(stmt)
+    cur.close()
     conn.commit()
 
 
@@ -350,10 +352,10 @@ def _seed_demo_sos(conn) -> None:
             "(id, reporter_name, reporter_phone, village_id, village_name, "
             "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
             "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (r["id"], r["reporter_name"], "", r["village_id"], r["village_name"],
              r["emergency_type"], r["severity"], r["description"], r["people_affected"],
-             r["medical_emergency"], "", r["latitude"], r["longitude"], r["timestamp"],
+             1 if r["medical_emergency"] else 0, "", r["latitude"], r["longitude"], r["timestamp"],
              "NEW", priority, 0, 0),
         )
     conn.commit()
@@ -470,7 +472,7 @@ def insert_safe_zones(zones: list[dict]) -> int:
             cur.execute(
                 "INSERT INTO safe_zones "
                 "(id, name, latitude, longitude, capacity, medical_access, safety_score, "
-                "road_access_score, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "road_access_score, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                 "ON CONFLICT(id) DO UPDATE SET name=excluded.name, latitude=excluded.latitude, "
                 "longitude=excluded.longitude, capacity=excluded.capacity, "
                 "medical_access=excluded.medical_access, safety_score=excluded.safety_score, "
