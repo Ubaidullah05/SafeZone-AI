@@ -282,3 +282,34 @@ export interface AuthSession {
   user: AuthUser
   cachedAt?: number
 }
+
+// ---------------------------------------------------------------------------
+// LifeLink Mesh types
+// ---------------------------------------------------------------------------
+
+export interface MeshNode {
+  node_id: string
+  device_id: string
+  battery_level: number
+  connectivity_score: number
+  role: 'USER' | 'RELAY' | 'CLUSTER_LEADER' | 'RESCUE'
+  latitude?: number
+  longitude?: number
+  last_seen: string
+  is_active: boolean
+}
+
+export interface MeshPacket {
+  packet_id: string
+  source_node_id: string
+  destination_node_id: string
+  message_type: string
+  priority: 'HIGH' | 'MEDIUM' | 'LOW'
+  payload: Record<string, unknown>
+  ttl: number
+  hop_count: number
+  relay_path: string[]
+  encrypted: boolean
+  timestamp: string
+  status: string
+}

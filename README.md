@@ -8,24 +8,34 @@
 
 **You need:** Node.js >= 18.18 and Python 3.11+.
 
-### 1. Start the backend
+### 1. Start PostgreSQL
+Create a database `safelink` and set `DATABASE_URL`:
+```bash
+createdb safelink
+export DATABASE_URL=postgresql://user:password@localhost:5432/safelink
+```
+
+### 2. Install backend dependencies
 ```bash
 cd backend
-python -m venv .venv
-.venv\Scripts\activate                       # Windows (macOS/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+```
+
+### 3. Start the backend
+```bash
+cd backend
+python -m uvicorn app.main:app --reload
 ```
 Server runs at **http://127.0.0.1:8000** (Swagger docs at `/docs`).
 
-### 2. Ingest real data (one-time)
+### 4. Ingest real data (one-time)
 ```bash
 cd backend
-SAFEZONE_SKIP_SEED=1 python -m scripts.ingest_data
+python -m scripts.ingest_data
 ```
-Populates the SQLite DB with 12 real Kedarnath villages and 5 safe zones. Skip this step to run in demo mode.
+Populates the PostgreSQL DB with 12 real Kedarnath villages and 5 safe zones. Skip this step to run in demo mode.
 
-### 3. Start the frontend
+### 5. Start the frontend
 ```bash
 cd frontend
 npm install
@@ -33,13 +43,13 @@ npm run dev
 ```
 Runs at **http://127.0.0.1:3000**. Vite proxies `/api` and `/ws` to the backend automatically.
 
-### 4. Verify the connection
+### 6. Verify the connection
 ```bash
 curl http://127.0.0.1:8000/api/health
 # {"status":"ok","mode":"real-data",...}
 ```
 
-### 5. Run the tests
+### 7. Run the tests
 ```bash
 backend\.venv\Scripts\python.exe -m pytest tests -q
 ```
@@ -112,18 +122,23 @@ python -m scripts.ingest_data
 
 **Frontend:** Vite, React 19, TypeScript, Tailwind CSS 3.4, React-Leaflet 5, Framer Motion, Lucide React, Axios, react-router-dom, idb (IndexedDB), PWA service worker.
 
-**Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, SQLite (sqlite3 stdlib), WebSockets.
+**Backend:** Python, FastAPI, Pydantic, Uvicorn, PyJWT, bcrypt, PostgreSQL (psycopg2), WebSockets.
 
-**Data:** SQLite database populated from CSV/JSON; bundled JSON fallback for demo mode.
+**Data:** PostgreSQL database populated from CSV/JSON; bundled JSON fallback for demo mode.
 
 ## Environment variables
 
 | Variable | Where | Purpose | Default |
 |---|---|---|---|
-| `SAFEZONE_DB_PATH` | Backend | SQLite database path | `app/data/safelink.db` |
+| `DATABASE_URL` | Backend | PostgreSQL connection string | `postgresql://postgres@localhost:5432/safelink` |
+| `DB_HOST` | Backend | DB host | `localhost` |
+| `DB_PORT` | Backend | DB port | `5432` |
+| `DB_NAME` | Backend | DB name | `safelink` |
+| `DB_USER` | Backend | DB user | `postgres` |
+| `DB_PASSWORD` | Backend | DB password | `""` |
 | `SAFEZONE_JWT_SECRET` | Backend | JWT signing secret | auto-generated |
 | `SAFEZONE_SKIP_SEED` | Backend | Skip demo user seeding | unset |
-| `SAFEZONE_DEMO_MODE` | Backend | Use JSON fallback data when DB is empty | unset |
+| `SAFEZONE_DEMO_MODE` | Backend | Use JSON fallback data when DB is empty | `0` |
 | `BACKEND_URL` | Frontend | Proxy target | `http://127.0.0.1:8000` |
 | `PORT` | Frontend | App port | `3000` |
 | `VITE_API_URL` | Frontend | Direct API override | `''` |
@@ -135,7 +150,7 @@ SafeZone-AI/
   backend/
     app/
       main.py              # FastAPI app, routes, WebSocket
-      db.py                # SQLite schema, villages/safe_zones tables
+      db.py                # PostgreSQL schema (psycopg2), villages/safe_zones tables
       data_loader.py       # DB-first loading with JSON fallback
       auth.py              # JWT auth, RBAC
       risk_engine.py       # Multi-factor risk scoring
@@ -147,6 +162,7 @@ SafeZone-AI/
       ingest_data.py       # Populate DB from CSV/JSON
     data/                  # census_villages.csv, safe_zones.json
     tests/                 # pytest suite
+    requirements.txt       # psycopg2-binary for PostgreSQL
   frontend/
     src/
       components/          # React components (Dashboard, SOS, Map, etc.)

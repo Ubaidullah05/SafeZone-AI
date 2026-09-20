@@ -6,8 +6,7 @@ import { useAuth } from './AuthContext'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const { user, register, authError, loading } = useAuth()
-  const isAdmin = user?.role === 'ADMIN'
+  const { register, authError, loading } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -53,17 +52,6 @@ export default function RegisterPage() {
             <h1 className="font-display text-2xl font-bold">Create Account</h1>
             <p className="mt-1 text-sm text-muted">New officials are created by an existing admin.</p>
           </div>
-
-          {!isAdmin && !submitted && (
-            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-golden/20 bg-golden/5 p-4 text-sm text-golden-300">
-              <ShieldAlert size={17} className="mt-0.5 shrink-0 text-golden" />
-              <p>
-                Registration is restricted to admins. Sign in as an admin, then visit the
-                <Link to="/authority" className="ml-1 font-semibold text-white underline decoration-golden/40 underline-offset-2 hover:text-golden">dashboard &rarr; People</Link>
-                to add officials.
-              </p>
-            </div>
-          )}
 
           {submitted ? (
             <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-8 text-center animate-fade-in">

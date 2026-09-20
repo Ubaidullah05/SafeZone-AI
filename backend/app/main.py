@@ -31,6 +31,7 @@ from .models import (
     RecommendationResult, ScenarioAdjustments, ScenarioResult,
     UserRegister, UserLogin, PinLogin, TokenResponse,
     SOSReportInput, SOSReportResult, AdjudicateInput, EventInput,
+    MeshNode, MeshPacket, MeshSyncRequest, MeshSyncResponse,
 )
 from .relocation_engine import rank_destinations
 from .capacity_engine import CapacityLedger
@@ -43,6 +44,7 @@ from .sos_engine import (
     add_sos_report, get_reports_by_village, get_reports_by_status,
     update_report_status, get_priority_queue, aggregate_by_village,
     load_sos_reports,
+    register_mesh_node, queue_mesh_packet, get_packets_for_node, get_active_nodes,
 )
 from .ground_reality_engine import (
     compute_ground_reality, get_operational_priority_list,
@@ -112,6 +114,14 @@ def require_official(authorization: Optional[str] = Header(None)) -> dict:
     user = _user_from_header(authorization)
     if not user or user["role"] not in ("ADMIN", "OFFICIAL"):
         raise HTTPException(status_code=403, detail="Official access required")
+    return user
+
+
+def require_volunteer(authorization: Optional[str] = Header(None)) -> dict:
+    """Require an ADMIN, OFFICIAL, or VOLUNTEER (field response / mesh node)."""
+    user = _user_from_header(authorization)
+    if not user or user["role"] not in ("ADMIN", "OFFICIAL", "VOLUNTEER"):
+        raise HTTPException(status_code=403, detail="Volunteer access required")
     return user
 
 
@@ -360,10 +370,10 @@ def get_village_advisory(village_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Learning engine (adaptive weights) - authority-facing status
+# Learning engine (adaptive weights) - OFFICIAL/ADMIN only
 # ---------------------------------------------------------------------------
 @app.get("/api/learning")
-def get_learning_state():
+def get_learning_state(user: dict = Depends(require_official)):
     """How much evidence the adaptive model has seen and what weights it uses."""
     return learning_stats()
 
@@ -444,10 +454,18 @@ def adjudicate_report(data: AdjudicateInput, user: dict = Depends(require_offici
 
     conn = db.get_conn()
     try:
-        conn.execute(
-            "INSERT OR REPLACE INTO adjudications "
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO adjudications "
             "(report_id, authority_id, actual_people_affected, actual_severity, outcome, note, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+            "ON CONFLICT (report_id) DO UPDATE SET "
+            "authority_id=excluded.authority_id, "
+            "actual_people_affected=excluded.actual_people_affected, "
+            "actual_severity=excluded.actual_severity, "
+            "outcome=excluded.outcome, "
+            "note=excluded.note, "
+            "created_at=excluded.created_at",
             (
                 data.report_id,
                 user["id"],
@@ -458,8 +476,8 @@ def adjudicate_report(data: AdjudicateInput, user: dict = Depends(require_offici
                 time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             ),
         )
-        conn.execute(
-            "UPDATE sos_reports SET status='RESOLVED', adjudicated_by=?, adjudicated_at=? WHERE id=?",
+        cur.execute(
+            "UPDATE sos_reports SET status='RESOLVED', adjudicated_by=%s, adjudicated_at=%s WHERE id=%s",
             (user["id"], time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), data.report_id),
         )
         conn.commit()
@@ -608,10 +626,20 @@ def register_event(data: EventInput, user: dict = Depends(require_official)):
     """Authorities register a documented historical event (validation corpus)."""
     conn = db.get_conn()
     try:
-        conn.execute(
-            "INSERT OR REPLACE INTO events "
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO events "
             "(id, village_id, location_name, hazard_type, date, observed_severity, magnitude, source, note) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+            "ON CONFLICT (id) DO UPDATE SET "
+            "village_id=excluded.village_id, "
+            "location_name=excluded.location_name, "
+            "hazard_type=excluded.hazard_type, "
+            "date=excluded.date, "
+            "observed_severity=excluded.observed_severity, "
+            "magnitude=excluded.magnitude, "
+            "source=excluded.source, "
+            "note=excluded.note",
             (
                 data.id,
                 data.village_id,
@@ -731,3 +759,42 @@ async def websocket_alerts(websocket: WebSocket):
         pass
     except Exception:
         pass
+
+
+# ---------------------------------------------------------------------------
+# LifeLink Mesh Network endpoints — authenticated volunteers+ only
+# ---------------------------------------------------------------------------
+
+@app.post("/api/mesh/node/register")
+def register_node(node: MeshNode, user: dict = Depends(require_volunteer)):
+    """Register or update a mesh node."""
+    register_mesh_node(node.model_dump())
+    return {"registered": True, "node_id": node.node_id}
+
+
+@app.post("/api/mesh/packet/queue")
+def queue_packet(packet: MeshPacket, user: dict = Depends(require_volunteer)):
+    """Queue a mesh packet for store-carry-forward routing."""
+    queue_mesh_packet(packet.model_dump())
+    return {"queued": True, "packet_id": packet.packet_id}
+
+
+@app.get("/api/mesh/packets")
+def get_packets(node_id: str, max_packets: int = 50, user: dict = Depends(require_volunteer)):
+    """Get packets destined for a node."""
+    packets = get_packets_for_node(node_id, max_packets)
+    return {"node_id": node_id, "packets": packets}
+
+
+@app.get("/api/mesh/nodes")
+def get_nodes(user: dict = Depends(require_official)):
+    """Get all active mesh nodes sorted by battery and connectivity."""
+    nodes = get_active_nodes()
+    return {"nodes": nodes}
+
+
+@app.post("/api/mesh/sync")
+def mesh_sync(req: MeshSyncRequest, user: dict = Depends(require_volunteer)):
+    """Sync mesh data from a gateway node."""
+    packets = get_packets_for_node(req.node_id, max_packets=100)
+    return MeshSyncResponse(node_id=req.node_id, packets=packets)

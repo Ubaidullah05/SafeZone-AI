@@ -1,38 +1,69 @@
 """
-Persistence layer (SQLite)
-==========================
+Persistence layer (PostgreSQL)
+==============================
 
-Single source of truth for user accounts, SOS reports, authority
+PostgreSQL-backed persistence for user accounts, SOS reports, authority
 adjudications, the learning engine's adaptive weight state, registered
 real-world hazard events, and login rate-limiting.
 
-Using SQLite (stdlib) on purpose:
-  * zero extra services to install for the SIH prototype,
-  * survives server restarts (the old design re-seeded JSON on every run),
-  * easy to swap for Postgres later.
+Connection is configured via the DATABASE_URL environment variable
+(postgresql://user:pass@host:5432/dbname) or individual vars:
+  DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 
-The path is configurable via the SAFEZONE_DB_PATH environment variable so
-tests can run against a temporary database. All helpers open a fresh
-connection per call: simple, thread-safe enough for a prototype, and robust
-to file corruption from lingering transactions.
+Falls back to SAFEZONE_DEMO_MODE JSON when the DB is unreachable.
 """
 
 import json
 import os
-import sqlite3
-import threading
 import time
 from pathlib import Path
+from typing import Optional
+
+import psycopg2
+from psycopg2.extras import RealDictRow
 
 DATA_DIR = Path(__file__).parent / "data"
 
 
-def db_path() -> Path:
-    return Path(os.environ.get("SAFEZONE_DB_PATH", str(DATA_DIR / "safelink.db")))
+# ---------------------------------------------------------------------------
+# Connection helpers
+# ---------------------------------------------------------------------------
+
+def _conn_str() -> str:
+    """Build a connection string from environment variables."""
+    url = os.environ.get("DATABASE_URL", "")
+    if url:
+        return url
+    host = os.environ.get("DB_HOST", "localhost")
+    port = os.environ.get("DB_PORT", "5432")
+    database = os.environ.get("DB_NAME", "safelink")
+    user = os.environ.get("DB_USER", "postgres")
+    password = os.environ.get("DB_PASSWORD", "")
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
 
-_lock = threading.Lock()
-_initialised = False
+def _connect():
+    """Open a raw PostgreSQL connection."""
+    conn = psycopg2.connect(_conn_str(), cursor_factory=RealDictRow)
+    conn.autocommit = False
+    return conn
+
+
+def _executescript(conn, schema_sql: str) -> None:
+    """Execute a multi-statement SQL string."""
+    statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
+    for stmt in statements:
+        conn.cursor().execute(stmt)
+    conn.commit()
+
+
+def _is_demo_mode() -> bool:
+    return os.environ.get("SAFEZONE_DEMO_MODE", "0") == "1"
+
+
+# ---------------------------------------------------------------------------
+# Schema
+# ---------------------------------------------------------------------------
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -71,15 +102,14 @@ CREATE TABLE IF NOT EXISTS sos_reports (
 );
 
 CREATE TABLE IF NOT EXISTS adjudications (
-    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
-    report_id              TEXT NOT NULL,
+    id                     SERIAL PRIMARY KEY,
+    report_id              TEXT NOT NULL UNIQUE,
     authority_id           TEXT NOT NULL,
     actual_people_affected INTEGER NOT NULL,
     actual_severity        INTEGER NOT NULL CHECK (actual_severity BETWEEN 1 AND 5),
     outcome                TEXT,
     note                   TEXT,
-    created_at             TEXT NOT NULL,
-    UNIQUE (report_id)
+    created_at             TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS model_state (
@@ -139,69 +169,80 @@ CREATE TABLE IF NOT EXISTS safe_zones (
 CREATE INDEX IF NOT EXISTS idx_sos_status ON sos_reports(status);
 CREATE INDEX IF NOT EXISTS idx_sos_village ON sos_reports(village_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_email_time ON auth_attempts(email, created_at);
+
+CREATE TABLE IF NOT EXISTS mesh_nodes (
+    node_id       TEXT PRIMARY KEY,
+    device_id     TEXT NOT NULL,
+    battery_level REAL NOT NULL DEFAULT 100,
+    connectivity_score REAL NOT NULL DEFAULT 0,
+    role          TEXT NOT NULL DEFAULT 'USER',
+    latitude      REAL,
+    longitude     REAL,
+    last_seen     TEXT,
+    is_active     INTEGER NOT NULL DEFAULT 1,
+    updated_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mesh_packets (
+    packet_id       TEXT PRIMARY KEY,
+    source_node_id  TEXT NOT NULL,
+    destination_node_id TEXT NOT NULL,
+    message_type    TEXT NOT NULL DEFAULT 'SOS',
+    priority        TEXT NOT NULL DEFAULT 'MEDIUM',
+    payload         TEXT NOT NULL DEFAULT '{}',
+    ttl             INTEGER NOT NULL DEFAULT 10,
+    hop_count       INTEGER NOT NULL DEFAULT 0,
+    relay_path      TEXT NOT NULL DEFAULT '[]',
+    encrypted       INTEGER NOT NULL DEFAULT 1,
+    timestamp       TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX IF NOT EXISTS idx_mesh_packet_status ON mesh_packets(status);
+CREATE INDEX IF NOT EXISTS idx_mesh_packet_dest ON mesh_packets(destination_node_id);
+CREATE INDEX IF NOT EXISTS idx_mesh_packet_priority ON mesh_packets(priority, timestamp);
 """
 
 
-def _connect() -> sqlite3.Connection:
-    """Open a raw connection without triggering init (used by init_db)."""
-    path = db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=30, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+# ---------------------------------------------------------------------------
+# Connection management
+# ---------------------------------------------------------------------------
+
+def get_conn():
+    """Open a fresh connection. Uses demo JSON fallback when applicable."""
+    if _is_demo_mode():
+        raise ConnectionError("Demo mode — no DB connection")
+    conn = _connect()
+    try:
+        _executescript(conn, SCHEMA)
+    except Exception:
+        conn.close()
+        raise
     return conn
-
-
-def _is_demo_mode() -> bool:
-    return os.environ.get("SAFEZONE_DEMO_MODE", "0") == "1"
-
-
-def get_conn() -> sqlite3.Connection:
-    """Open a fresh connection. Uses WAL for concurrent readers/writers.
-    Lazily initialises schema + first-run seed so any module can safely
-    touch the database without explicit setup."""
-    global _initialised
-    if not _initialised:
-        with _lock:
-            if not _initialised:
-                conn = _connect()
-                try:
-                    conn.executescript(SCHEMA)
-                    _seed_model_state(conn)
-                    if _is_demo_mode() and not os.environ.get("SAFEZONE_SKIP_SEED"):
-                        _seed_demo_sos(conn)
-                        _seed_users(conn)
-                    conn.commit()
-                finally:
-                    conn.close()
-                _initialised = True
-    return _connect()
 
 
 def init_db() -> None:
     """Force schema creation and first-run seeding (idempotent)."""
-    with _lock:
-        global _initialised
-        conn = _connect()
-        try:
-            conn.executescript(SCHEMA)
-            _seed_model_state(conn)
-            if not os.environ.get("SAFEZONE_SKIP_SEED"):
-                _seed_demo_sos(conn)
-                _seed_users(conn)
-            conn.commit()
-        finally:
-            conn.close()
-        _initialised = True
+    conn = _connect()
+    try:
+        _executescript(conn, SCHEMA)
+        _seed_model_state(conn)
+        if not os.environ.get("SAFEZONE_SKIP_SEED"):
+            _seed_demo_sos(conn)
+            _seed_users(conn)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
 # Seeding
 # ---------------------------------------------------------------------------
 
-def _seed_model_state(conn: sqlite3.Connection) -> None:
-    if conn.execute("SELECT 1 FROM model_state WHERE key='risk_weights'").fetchone():
+def _seed_model_state(conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM model_state WHERE key='risk_weights'")
+    if cur.fetchone():
         return
     defaults = {
         "risk_weights": {
@@ -224,25 +265,31 @@ def _seed_model_state(conn: sqlite3.Connection) -> None:
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     for key, value in defaults.items():
-        conn.execute(
-            "INSERT INTO model_state (key, value) VALUES (?, ?)",
+        cur.execute(
+            "INSERT INTO model_state (key, value) VALUES (%s, %s) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, json.dumps(value)),
         )
+    conn.commit()
 
 
-def _seed_users(conn: sqlite3.Connection) -> None:
-    if conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+def _seed_users(conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM users LIMIT 1")
+    if cur.fetchone():
         return
-    from .auth_hashes import seed_demo_users  # lazy import to avoid cycles
+    from .auth_hashes import seed_demo_users
     seed_demo_users(conn)
 
 
-def _seed_demo_sos(conn: sqlite3.Connection) -> None:
+def _seed_demo_sos(conn) -> None:
     """A few clearly-labelled demo reports so the map/feeds are not empty on
-    first run. Judges can still submit live reports."""
-    if conn.execute("SELECT 1 FROM sos_reports LIMIT 1").fetchone():
+    first run."""
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM sos_reports LIMIT 1")
+    if cur.fetchone():
         return
-    from .sos_engine import calculate_sos_priority  # lazy import to avoid cycles
+    from .sos_engine import calculate_sos_priority
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     demo = [
         {
@@ -254,7 +301,7 @@ def _seed_demo_sos(conn: sqlite3.Connection) -> None:
             "severity": 4,
             "description": "Demo record: water levels rising near stream bank.",
             "people_affected": 60,
-            "medical_emergency": 0,
+            "medical_emergency": False,
             "latitude": 30.203,
             "longitude": 78.46,
             "timestamp": now,
@@ -268,7 +315,7 @@ def _seed_demo_sos(conn: sqlite3.Connection) -> None:
             "severity": 3,
             "description": "Demo record: landslide debris blocking main approach road.",
             "people_affected": 0,
-            "medical_emergency": 0,
+            "medical_emergency": False,
             "latitude": 30.121,
             "longitude": 78.451,
             "timestamp": now,
@@ -282,31 +329,34 @@ def _seed_demo_sos(conn: sqlite3.Connection) -> None:
             "severity": 5,
             "description": "Demo record: medical access request.",
             "people_affected": 2,
-            "medical_emergency": 1,
+            "medical_emergency": True,
             "latitude": 30.188,
             "longitude": 78.418,
             "timestamp": now,
         },
     ]
+    cur.execute("BEGIN")
     for r in demo:
         priority = calculate_sos_priority(
             severity=r["severity"],
             emergency_type=r["emergency_type"],
             people_affected=r["people_affected"],
-            medical_emergency=bool(r["medical_emergency"]),
+            medical_emergency=r["medical_emergency"],
             total_village_population=2500,
             timestamp=r["timestamp"],
         )
-        conn.execute(
-            "INSERT INTO sos_reports (id, reporter_name, reporter_phone, village_id, village_name, "
+        cur.execute(
+            "INSERT INTO sos_reports "
+            "(id, reporter_name, reporter_phone, village_id, village_name, "
             "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
             "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (r["id"], r["reporter_name"], "", r["village_id"], r["village_name"],
              r["emergency_type"], r["severity"], r["description"], r["people_affected"],
              r["medical_emergency"], "", r["latitude"], r["longitude"], r["timestamp"],
              "NEW", priority, 0, 0),
         )
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +366,9 @@ def _seed_demo_sos(conn: sqlite3.Connection) -> None:
 def get_state(key: str, default=None):
     conn = get_conn()
     try:
-        row = conn.execute("SELECT value FROM model_state WHERE key=?", (key,)).fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM model_state WHERE key=%s", (key,))
+        row = cur.fetchone()
         return json.loads(row["value"]) if row else default
     finally:
         conn.close()
@@ -325,8 +377,9 @@ def get_state(key: str, default=None):
 def set_state(key: str, value) -> None:
     conn = get_conn()
     try:
-        conn.execute(
-            "INSERT INTO model_state (key, value) VALUES (?, ?) "
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO model_state (key, value) VALUES (%s, %s) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, json.dumps(value)),
         )
@@ -340,27 +393,36 @@ def set_state(key: str, value) -> None:
 # ---------------------------------------------------------------------------
 
 def has_villages() -> bool:
-    """Check if villages table has data."""
     conn = get_conn()
     try:
-        row = conn.execute("SELECT 1 FROM villages LIMIT 1").fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM villages LIMIT 1")
+        row = cur.fetchone()
         return row is not None
     finally:
         conn.close()
 
 
 def insert_villages(villages: list[dict]) -> int:
-    """Insert or replace villages. Returns count inserted."""
     conn = get_conn()
     try:
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         count = 0
+        cur = conn.cursor()
         for v in villages:
-            conn.execute(
-                "INSERT OR REPLACE INTO villages "
+            cur.execute(
+                "INSERT INTO villages "
                 "(id, name, latitude, longitude, population, hazard_severity, slope_risk, "
                 "population_exposure, accessibility_risk, facility_access_risk, historical_event_risk, "
-                "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "ON CONFLICT(id) DO UPDATE SET name=excluded.name, latitude=excluded.latitude, "
+                "longitude=excluded.longitude, population=excluded.population, "
+                "hazard_severity=excluded.hazard_severity, slope_risk=excluded.slope_risk, "
+                "population_exposure=excluded.population_exposure, "
+                "accessibility_risk=excluded.accessibility_risk, "
+                "facility_access_risk=excluded.facility_access_risk, "
+                "historical_event_risk=excluded.historical_event_risk, "
+                "updated_at=excluded.updated_at",
                 (
                     v["id"], v["name"], v["latitude"], v["longitude"], v["population"],
                     v.get("hazard_severity", 0), v.get("slope_risk", 0),
@@ -377,36 +439,43 @@ def insert_villages(villages: list[dict]) -> int:
 
 
 def get_villages_from_db() -> list[dict]:
-    """Load all villages from database."""
     conn = get_conn()
     try:
-        rows = conn.execute("SELECT * FROM villages ORDER BY id").fetchall()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM villages ORDER BY id")
+        rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
 
 
 def has_safe_zones() -> bool:
-    """Check if safe_zones table has data."""
     conn = get_conn()
     try:
-        row = conn.execute("SELECT 1 FROM safe_zones LIMIT 1").fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM safe_zones LIMIT 1")
+        row = cur.fetchone()
         return row is not None
     finally:
         conn.close()
 
 
 def insert_safe_zones(zones: list[dict]) -> int:
-    """Insert or replace safe zones. Returns count inserted."""
     conn = get_conn()
     try:
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         count = 0
+        cur = conn.cursor()
         for z in zones:
-            conn.execute(
-                "INSERT OR REPLACE INTO safe_zones "
+            cur.execute(
+                "INSERT INTO safe_zones "
                 "(id, name, latitude, longitude, capacity, medical_access, safety_score, "
-                "road_access_score, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "road_access_score, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "ON CONFLICT(id) DO UPDATE SET name=excluded.name, latitude=excluded.latitude, "
+                "longitude=excluded.longitude, capacity=excluded.capacity, "
+                "medical_access=excluded.medical_access, safety_score=excluded.safety_score, "
+                "road_access_score=excluded.road_access_score, "
+                "updated_at=excluded.updated_at",
                 (
                     z["id"], z["name"], z["latitude"], z["longitude"], z["capacity"],
                     z.get("medical_access", 0), z.get("safety_score", 0),
@@ -421,10 +490,11 @@ def insert_safe_zones(zones: list[dict]) -> int:
 
 
 def get_safe_zones_from_db() -> list[dict]:
-    """Load all safe zones from database."""
     conn = get_conn()
     try:
-        rows = conn.execute("SELECT * FROM safe_zones ORDER BY id").fetchall()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM safe_zones ORDER BY id")
+        rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()

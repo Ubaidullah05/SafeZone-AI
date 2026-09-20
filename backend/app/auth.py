@@ -1,6 +1,6 @@
 """
 Authentication & Authorization (RBAC)
-=====================================
+======================================
 
 JWT-based auth for AUTHORITY accounts only (ADMIN / OFFICIAL / VOLUNTEER).
 
@@ -106,8 +106,9 @@ LOCKOUT_COOLDOWN_SECONDS = 15 * 60
 def _record_auth_attempt(email: str, action: str, success: bool, ip: Optional[str] = None) -> None:
     conn = db.get_conn()
     try:
-        conn.execute(
-            "INSERT INTO auth_attempts (email, action, ip, success, created_at) VALUES (?, ?, ?, ?, ?)",
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO auth_attempts (email, action, ip, success, created_at) VALUES (%s, %s, %s, %s, %s)",
             (email.lower(), action, ip, 1 if success else 0, time.time()),
         )
         conn.commit()
@@ -119,20 +120,23 @@ def _is_locked_out(email: str) -> int:
     """Returns seconds remaining in the lockout, or 0 if not locked."""
     conn = db.get_conn()
     try:
-        row = conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             "SELECT created_at FROM auth_attempts "
-            "WHERE email=? AND success=0 AND created_at > ? "
+            "WHERE email=%s AND success=0 AND created_at > %s "
             "ORDER BY created_at DESC",
             (email.lower(), time.time() - LOCKOUT_COOLDOWN_SECONDS),
-        ).fetchone()
+        )
+        row = cur.fetchone()
         if not row:
             return 0
-        failures = conn.execute(
+        cur.execute(
             "SELECT COUNT(*) AS n FROM auth_attempts "
-            "WHERE email=? AND success=0 AND created_at > ?",
+            "WHERE email=%s AND success=0 AND created_at > %s",
             (email.lower(), time.time() - LOCKOUT_WINDOW_SECONDS),
-        ).fetchone()["n"]
-        if failures < LOCKOUT_ATTEMPTS:
+        )
+        n = cur.fetchone()["n"]
+        if n < LOCKOUT_ATTEMPTS:
             return 0
         return max(0, int(row["created_at"] + LOCKOUT_COOLDOWN_SECONDS - time.time()))
     finally:
@@ -140,15 +144,15 @@ def _is_locked_out(email: str) -> int:
 
 
 # ---------------------------------------------------------------------------
-# User store (SQLite)
+# User store
 # ---------------------------------------------------------------------------
 
 def find_user_by_email(email: str) -> Optional[dict]:
     conn = db.get_conn()
     try:
-        row = conn.execute(
-            "SELECT * FROM users WHERE lower(email)=lower(?) AND active=1", (email,)
-        ).fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE lower(email)=lower(%s) AND active=1", (email,))
+        row = cur.fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -157,7 +161,9 @@ def find_user_by_email(email: str) -> Optional[dict]:
 def find_user_by_id(user_id: str) -> Optional[dict]:
     conn = db.get_conn()
     try:
-        row = conn.execute("SELECT * FROM users WHERE id=? AND active=1", (user_id,)).fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE id=%s AND active=1", (user_id,))
+        row = cur.fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -166,9 +172,9 @@ def find_user_by_id(user_id: str) -> Optional[dict]:
 def list_users() -> list[dict]:
     conn = db.get_conn()
     try:
-        rows = conn.execute(
-            "SELECT id, name, email, role, department, created_at, active FROM users ORDER BY created_at"
-        ).fetchall()
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, email, role, department, created_at, active FROM users ORDER BY created_at")
+        rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -186,25 +192,29 @@ def create_user(
         raise ValueError("Password must be at least 8 characters")
     conn = db.get_conn()
     try:
-        if conn.execute("SELECT 1 FROM users WHERE lower(email)=lower(?)", (email,)).fetchone():
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM users WHERE lower(email)=lower(%s)", (email,))
+        if cur.fetchone():
             raise ValueError(f"Email '{email}' is already registered")
-        user = {
-            "id": "USR" + secrets.token_hex(3).upper(),
+        user_id = "USR" + secrets.token_hex(3).upper()
+        created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        cur.execute(
+            "INSERT INTO users (id, name, email, password_hash, role, pin_hash, department, created_at, active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1)",
+            (user_id, name, email, hash_password(password), role,
+             hash_password(pin) if pin else None, department, created_at),
+        )
+        conn.commit()
+        return {
+            "id": user_id,
             "name": name,
             "email": email,
             "password_hash": hash_password(password),
             "role": role,
             "pin_hash": hash_password(pin) if pin else None,
             "department": department,
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "created_at": created_at,
         }
-        conn.execute(
-            "INSERT INTO users (id, name, email, password_hash, role, pin_hash, department, created_at, active) "
-            "VALUES (:id, :name, :email, :password_hash, :role, :pin_hash, :department, :created_at, 1)",
-            user,
-        )
-        conn.commit()
-        return user
     finally:
         conn.close()
 

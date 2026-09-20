@@ -11,8 +11,23 @@ import {
   getCachedGroundReality,
   cacheOperationalPriority,
   getCachedOperationalPriority,
+  cacheRiskSummary,
+  getCachedRiskSummary,
+  cacheSOSLatest,
+  getCachedSOSLatest,
+  cacheSOSStats,
+  getCachedSOSStats,
+  cacheRelocationPriority,
+  getCachedRelocationPriority,
   cacheOfflineManifest,
+  cacheMeshNode,
+  getCachedMeshNode,
+  cacheMeshPacket,
+  getCachedMeshPacket,
+  cacheMeshNodes,
+  getCachedMeshNodes,
 } from './offlineCache'
+import type { MeshNode, MeshPacket } from '../types'
 import type {
   AdvisoryItem,
   AdvisoryResponse,
@@ -69,10 +84,13 @@ client.interceptors.response.use(
 )
 
 // ---- Helper: try network, fall back to cache ----
-async function fetchWithFallback<T extends unknown[]>(
+// Works for both array payloads (villages, reports) and single-object
+// payloads (risk summary, stats). An empty array is treated as "no cache";
+// a non-null object is always accepted.
+async function fetchWithFallback<T>(
   fetchFn: () => Promise<T>,
   cacheFn?: (data: T) => Promise<void>,
-  cacheGetFn?: () => Promise<T>
+  cacheGetFn?: () => Promise<T | undefined>
 ): Promise<T> {
   try {
     const data = await fetchFn()
@@ -83,8 +101,9 @@ async function fetchWithFallback<T extends unknown[]>(
   } catch (err) {
     if (cacheGetFn) {
       const cached = await cacheGetFn().catch(() => undefined)
-      if (cached && cached.length > 0) {
-        return cached
+      const hasCache = cached !== undefined && cached !== null && (!Array.isArray(cached) || cached.length > 0)
+      if (hasCache) {
+        return cached as T
       }
     }
     throw err
@@ -151,13 +170,25 @@ export async function fetchSafeZones(): Promise<SafeZoneResult[]> {
 }
 
 export async function fetchRiskSummary(): Promise<RiskSummary> {
-  const { data } = await client.get<RiskSummary>('/api/risk-summary')
-  return data
+  return fetchWithFallback(
+    async () => {
+      const { data } = await client.get<RiskSummary>('/api/risk-summary')
+      return data
+    },
+    (data) => cacheRiskSummary(data),
+    () => getCachedRiskSummary<RiskSummary>()
+  )
 }
 
 export async function fetchRelocationPriority(): Promise<VillageResult[]> {
-  const { data } = await client.get<VillageResult[]>('/api/relocation-priority')
-  return data
+  return fetchWithFallback(
+    async () => {
+      const { data } = await client.get<VillageResult[]>('/api/relocation-priority')
+      return data
+    },
+    (data) => cacheRelocationPriority(data),
+    () => getCachedRelocationPriority<VillageResult[]>()
+  )
 }
 
 export async function fetchRecommendation(villageId: string): Promise<RecommendationResult> {
@@ -250,8 +281,14 @@ export async function adjudicateSOS(
 }
 
 export async function fetchSOSLatest(): Promise<SOSLatestItem[]> {
-  const { data } = await client.get<SOSLatestItem[]>('/api/sos/latest')
-  return data
+  return fetchWithFallback(
+    async () => {
+      const { data } = await client.get<SOSLatestItem[]>('/api/sos/latest')
+      return data
+    },
+    (data) => cacheSOSLatest(data),
+    () => getCachedSOSLatest<SOSLatestItem[]>()
+  )
 }
 
 export async function fetchSOSPriorityQueue(): Promise<SOSReport[]> {
@@ -260,8 +297,14 @@ export async function fetchSOSPriorityQueue(): Promise<SOSReport[]> {
 }
 
 export async function fetchSOSStats(): Promise<SOSStats> {
-  const { data } = await client.get<SOSStats>('/api/sos/stats')
-  return data
+  return fetchWithFallback(
+    async () => {
+      const { data } = await client.get<SOSStats>('/api/sos/stats')
+      return data
+    },
+    (data) => cacheSOSStats(data),
+    () => getCachedSOSStats<SOSStats>()
+  )
 }
 
 export async function fetchSOSAggregate(): Promise<Record<string, unknown>> {
@@ -338,6 +381,35 @@ export async function fetchAndCacheManifest() {
     console.warn('Failed to fetch offline manifest:', err)
     return null
   }
+}
+
+// ---- LifeLink Mesh ----
+export async function registerMeshNode(node: MeshNode): Promise<{ registered: boolean; node_id: string }> {
+  const { data } = await client.post('/api/mesh/node/register', node)
+  await cacheMeshNode(node).catch(() => {})
+  return data
+}
+
+export async function queueMeshPacket(packet: MeshPacket): Promise<{ queued: boolean; packet_id: string }> {
+  const { data } = await client.post('/api/mesh/packet/queue', packet)
+  await cacheMeshPacket(packet).catch(() => {})
+  return data
+}
+
+export async function fetchMeshPackets(nodeId: string, maxPackets = 50): Promise<{ node_id: string; packets: MeshPacket[] }> {
+  const { data } = await client.get(`/api/mesh/packets?node_id=${nodeId}&max_packets=${maxPackets}`)
+  return data
+}
+
+export async function fetchMeshNodes(): Promise<{ nodes: MeshNode[] }> {
+  const { data } = await client.get('/api/mesh/nodes')
+  await cacheMeshNodes(data.nodes).catch(() => {})
+  return data
+}
+
+export async function meshSync(req: { node_id: string }): Promise<{ node_id: string; packets: MeshPacket[] }> {
+  const { data } = await client.post('/api/mesh/sync', req)
+  return data
 }
 
 // ---- Online status helper ----

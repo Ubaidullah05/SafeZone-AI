@@ -5,7 +5,7 @@
  * Stores village data, SOS reports, ground reality, and the user session.
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { AuthSession, GroundRealityResult, OperationalPriorityItem, SafeZoneResult, SOSReport, VillageResult } from '../types'
+import type { AuthSession, GroundRealityResult, MeshNode, MeshPacket, OperationalPriorityItem, SafeZoneResult, SOSReport, VillageResult } from '../types'
 
 interface CacheDb extends DBSchema {
   villages: { key: string; value: VillageResult }
@@ -15,10 +15,11 @@ interface CacheDb extends DBSchema {
   groundReality: { key: string; value: GroundRealityResult }
   session: { key: string; value: AuthSession }
   meta: { key: string; value: { timestamp: number } }
+  keyValue: { key: string; value: { key: string; data: unknown; timestamp: number } }
 }
 
 const DB_NAME = 'safezone-ai-db'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<CacheDb>> | null = null
 
@@ -33,6 +34,7 @@ function getDB(): Promise<IDBPDatabase<CacheDb>> {
         if (!db.objectStoreNames.contains('groundReality')) db.createObjectStore('groundReality', { keyPath: 'village_id' })
         if (!db.objectStoreNames.contains('session')) db.createObjectStore('session')
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta')
+        if (!db.objectStoreNames.contains('keyValue')) db.createObjectStore('keyValue', { keyPath: 'key' })
       },
     })
   }
@@ -112,6 +114,54 @@ export async function getCachedOperationalPriority(): Promise<OperationalPriorit
   return db.getAll('operationalPriority')
 }
 
+// ---- Generic key-value cache (single-object payloads) ----
+async function putKeyValue<T>(key: string, data: T): Promise<void> {
+  const db = await getDB()
+  await db.put('keyValue', { key, data, timestamp: Date.now() })
+}
+
+async function getKeyValue<T>(key: string): Promise<T | undefined> {
+  const db = await getDB()
+  const entry = await db.get('keyValue', key)
+  return entry?.data as T | undefined
+}
+
+// ---- Risk summary ----
+export function cacheRiskSummary(data: unknown): Promise<void> {
+  return putKeyValue('riskSummary', data)
+}
+
+export function getCachedRiskSummary<T>(): Promise<T | undefined> {
+  return getKeyValue<T>('riskSummary')
+}
+
+// ---- SOS latest feed ----
+export function cacheSOSLatest(data: unknown): Promise<void> {
+  return putKeyValue('sosLatest', data)
+}
+
+export function getCachedSOSLatest<T>(): Promise<T | undefined> {
+  return getKeyValue<T>('sosLatest')
+}
+
+// ---- SOS stats ----
+export function cacheSOSStats(data: unknown): Promise<void> {
+  return putKeyValue('sosStats', data)
+}
+
+export function getCachedSOSStats<T>(): Promise<T | undefined> {
+  return getKeyValue<T>('sosStats')
+}
+
+// ---- Relocation priority ----
+export function cacheRelocationPriority(data: unknown): Promise<void> {
+  return putKeyValue('relocationPriority', data)
+}
+
+export function getCachedRelocationPriority<T>(): Promise<T | undefined> {
+  return getKeyValue<T>('relocationPriority')
+}
+
 // ---- Session ----
 export async function cacheSession(token: string, user: AuthSession['user']) {
   const db = await getDB()
@@ -168,4 +218,44 @@ export async function cacheOfflineManifest(manifest: Partial<OfflineManifest>): 
 export async function isCacheStale(maxAgeMs = 5 * 60 * 1000): Promise<boolean> {
   const lastSync = await getCacheTimestamp('last_manifest_sync')
   return Date.now() - lastSync > maxAgeMs
+}
+
+// ---- LifeLink Mesh offline cache ----
+export async function cacheMeshNode(node: MeshNode): Promise<void> {
+  const db = await getDB()
+  await db.put('keyValue', { key: `mesh_node_${node.node_id}`, data: node, timestamp: Date.now() })
+}
+
+export async function getCachedMeshNode(nodeId: string): Promise<MeshNode | undefined> {
+  const db = await getDB()
+  const entry = await db.get('keyValue', `mesh_node_${nodeId}`)
+  return entry?.data as MeshNode | undefined
+}
+
+export async function cacheMeshPacket(packet: MeshPacket): Promise<void> {
+  const db = await getDB()
+  await db.put('keyValue', { key: `mesh_packet_${packet.packet_id}`, data: packet, timestamp: Date.now() })
+}
+
+export async function getCachedMeshPacket(packetId: string): Promise<MeshPacket | undefined> {
+  const db = await getDB()
+  const entry = await db.get('keyValue', `mesh_packet_${packetId}`)
+  return entry?.data as MeshPacket | undefined
+}
+
+export async function cacheMeshNodes(nodes: MeshNode[]): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction('keyValue', 'readwrite')
+  for (const node of nodes) {
+    await tx.store.put({ key: `mesh_node_${node.node_id}`, data: node, timestamp: Date.now() })
+  }
+  await tx.done
+}
+
+export async function getCachedMeshNodes(): Promise<MeshNode[]> {
+  const db = await getDB()
+  const all = await db.getAll('keyValue')
+  return all
+    .filter(e => e.key.startsWith('mesh_node_'))
+    .map(e => e.data as MeshNode)
 }

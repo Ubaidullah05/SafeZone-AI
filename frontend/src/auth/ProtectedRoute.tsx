@@ -1,8 +1,14 @@
 import { useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import type { Role } from '../types'
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+interface ProtectedRouteProps {
+  children: ReactNode
+  requiredRole?: Role
+}
+
+export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
 
@@ -24,6 +30,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
+    return null
+  }
+
+  // Role-based access control
+  if (requiredRole && user.role !== requiredRole) {
     return null
   }
 

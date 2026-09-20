@@ -1,6 +1,6 @@
 """
 Demo account seeding (first-run only)
-=====================================
+========================================
 
 Demo credentials are created the first time the database is initialised:
 
@@ -51,10 +51,12 @@ def seed_demo_users(conn) -> None:
         },
     ]
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    cur = conn.cursor()
+    cur.execute("BEGIN")
     for u in users:
-        conn.execute(
+        cur.execute(
             "INSERT INTO users (id, name, email, password_hash, role, pin_hash, department, created_at, active) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1)",
             (
                 u["id"],
                 u["name"],
@@ -66,3 +68,4 @@ def seed_demo_users(conn) -> None:
                 created_at,
             ),
         )
+    conn.commit()

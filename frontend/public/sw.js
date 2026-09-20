@@ -6,9 +6,9 @@
  * Background sync queues offline SOS submissions for replay when back online.
  */
 
-const CACHE_NAME = 'safelink-v4'
-const STATIC_CACHE = 'safelink-static-v4'
-const API_CACHE = 'safelink-api-v4'
+const CACHE_NAME = 'safelink-v5'
+const STATIC_CACHE = 'safelink-static-v5'
+const API_CACHE = 'safelink-api-v5'
 
 // App shell files to pre-cache
 const APP_SHELL = [
@@ -129,15 +129,18 @@ async function syncOfflineSOS() {
   })
 }
 
-// Must match src/services/offlineCache.js (DB_NAME / SOS store name).
+// Must match src/services/offlineCache.ts (DB_NAME / DB_VERSION / keyValue store).
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('safezone-ai-db', 1)
+    const request = indexedDB.open('safezone-ai-db', 2)
     request.onerror = () => reject(request.error)
     request.onupgradeneeded = () => {
       const db = request.result
       if (!db.objectStoreNames.contains('sosReports')) {
         db.createObjectStore('sosReports', { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains('keyValue')) {
+        db.createObjectStore('keyValue', { keyPath: 'key' })
       }
     }
     request.onsuccess = () => resolve(request.result)

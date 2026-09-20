@@ -17,11 +17,18 @@ function App() {
             <Routes>
               <Route path="/" element={<PublicView />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/register"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <RegisterPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/authority"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AppDashboard />
                   </ProtectedRoute>
                 }

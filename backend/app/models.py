@@ -331,3 +331,51 @@ class DistrictAdvisory(BaseModel):
     evidence: list[str]
     verdict: str = "AUTHORITY"
     verdict_note: str
+
+
+# ---------------------------------------------------------------------------
+# LifeLink Mesh Network models
+# ---------------------------------------------------------------------------
+
+class MeshNode(BaseModel):
+    """A device node in the LifeLink mesh network."""
+    node_id: str
+    device_id: str
+    battery_level: float = 100.0  # 0-100
+    connectivity_score: float = 0.0  # 0-100
+    role: str = "USER"  # USER | RELAY | CLUSTER_LEADER | RESCUE
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    last_seen: str = ""
+    is_active: bool = True
+
+
+class MeshPacket(BaseModel):
+    """A message packet being routed through the mesh."""
+    packet_id: str
+    source_node_id: str
+    destination_node_id: str
+    message_type: str = "SOS"  # SOS | LOCATION | TEXT | STATUS | MEDICAL
+    priority: str = "MEDIUM"  # HIGH | MEDIUM | LOW
+    payload: dict = {}
+    ttl: int = 10  # hop count limit
+    hop_count: int = 0
+    relay_path: list[str] = []
+    encrypted: bool = True
+    timestamp: str = ""
+    status: str = "PENDING"  # PENDING | IN_TRANSIT | DELIVERED | EXPIRED | FAILED
+
+
+class MeshSyncRequest(BaseModel):
+    """Request to sync mesh data from a gateway node."""
+    node_id: str
+    packet_ids: list[str] = []
+    since_timestamp: str = ""
+
+
+class MeshSyncResponse(BaseModel):
+    """Response containing queued packets for a node."""
+    node_id: str
+    packets: list[MeshPacket] = []
+    relay_instructions: list[dict] = []
+    next_hop: Optional[str] = None
