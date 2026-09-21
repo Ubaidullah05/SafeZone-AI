@@ -6,9 +6,9 @@
  * Background sync queues offline SOS submissions for replay when back online.
  */
 
-const CACHE_NAME = 'safelink-v5'
-const STATIC_CACHE = 'safelink-static-v5'
-const API_CACHE = 'safelink-api-v5'
+const CACHE_NAME = 'safelink-v6'
+const STATIC_CACHE = 'safelink-static-v6'
+const API_CACHE = 'safelink-api-v6'
 
 // App shell files to pre-cache
 const APP_SHELL = [
@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => !key.endsWith('-v4'))
+          .filter((key) => !key.endsWith('-v6'))
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
