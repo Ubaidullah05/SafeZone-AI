@@ -250,6 +250,17 @@ export default function PublicView() {
       </footer>
 
       {showSOS && <SOSReportForm onSubmit={() => setShowSOS(false)} onClose={() => setShowSOS(false)} />}
+
+      {/* Floating SOS button — always visible, one-tap emergency */}
+      {!showSOS && (
+        <button
+          onClick={() => setShowSOS(true)}
+          className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-500 text-white shadow-2xl shadow-red-500/40 transition-all hover:from-red-500 hover:to-red-400 hover:scale-110 active:scale-95 sm:bottom-8 sm:right-8 sm:h-[72px] sm:w-[72px]"
+          title="One-tap SOS — sends your location to officials"
+        >
+          <Siren size={28} />
+        </button>
+      )}
     </div>
   )
 }
