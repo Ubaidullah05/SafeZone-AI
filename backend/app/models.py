@@ -82,13 +82,13 @@ class SafeZoneInput(BaseModel):
 
 class SOSReportInput(BaseModel):
     """A citizen-submitted SOS report (no account required)."""
-    reporter_name: str
+    reporter_name: str = "Civilian (SOS)"
     reporter_phone: str = ""
-    village_id: str
-    village_name: str
-    emergency_type: str
-    severity: int = Field(ge=1, le=5)
-    description: str
+    village_id: str = "unknown"
+    village_name: str = ""
+    emergency_type: str = "OTHER"
+    severity: int = Field(default=5, ge=1, le=5)
+    description: str = "SOS emergency alert — civilian pressed distress button."
     people_affected: int = 1
     medical_emergency: bool = False
     medical_details: str = ""
