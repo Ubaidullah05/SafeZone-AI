@@ -5,7 +5,7 @@
  * Stores village data, SOS reports, ground reality, and the user session.
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { AuthSession, GroundRealityResult, MeshNode, MeshPacket, OperationalPriorityItem, SafeZoneResult, SOSReport, VillageResult } from '../types'
+import type { AuthSession, GroundRealityResult, OperationalPriorityItem, SafeZoneResult, SOSReport, VillageResult } from '../types'
 
 interface CacheDb extends DBSchema {
   villages: { key: string; value: VillageResult }
@@ -184,12 +184,6 @@ export async function setCacheTimestamp(key: string) {
   await db.put('meta', { timestamp: Date.now() }, key)
 }
 
-export async function getCacheTimestamp(key: string): Promise<number> {
-  const db = await getDB()
-  const meta = await db.get('meta', key)
-  return meta?.timestamp || 0
-}
-
 // ---- Bulk cache from offline manifest ----
 export interface OfflineManifest {
   villages: VillageResult[]
@@ -212,50 +206,4 @@ export async function cacheOfflineManifest(manifest: Partial<OfflineManifest>): 
     console.error('Failed to cache offline manifest:', e)
     return false
   }
-}
-
-// ---- Check if cache is stale (>5 minutes old) ----
-export async function isCacheStale(maxAgeMs = 5 * 60 * 1000): Promise<boolean> {
-  const lastSync = await getCacheTimestamp('last_manifest_sync')
-  return Date.now() - lastSync > maxAgeMs
-}
-
-// ---- LifeLink Mesh offline cache ----
-export async function cacheMeshNode(node: MeshNode): Promise<void> {
-  const db = await getDB()
-  await db.put('keyValue', { key: `mesh_node_${node.node_id}`, data: node, timestamp: Date.now() })
-}
-
-export async function getCachedMeshNode(nodeId: string): Promise<MeshNode | undefined> {
-  const db = await getDB()
-  const entry = await db.get('keyValue', `mesh_node_${nodeId}`)
-  return entry?.data as MeshNode | undefined
-}
-
-export async function cacheMeshPacket(packet: MeshPacket): Promise<void> {
-  const db = await getDB()
-  await db.put('keyValue', { key: `mesh_packet_${packet.packet_id}`, data: packet, timestamp: Date.now() })
-}
-
-export async function getCachedMeshPacket(packetId: string): Promise<MeshPacket | undefined> {
-  const db = await getDB()
-  const entry = await db.get('keyValue', `mesh_packet_${packetId}`)
-  return entry?.data as MeshPacket | undefined
-}
-
-export async function cacheMeshNodes(nodes: MeshNode[]): Promise<void> {
-  const db = await getDB()
-  const tx = db.transaction('keyValue', 'readwrite')
-  for (const node of nodes) {
-    await tx.store.put({ key: `mesh_node_${node.node_id}`, data: node, timestamp: Date.now() })
-  }
-  await tx.done
-}
-
-export async function getCachedMeshNodes(): Promise<MeshNode[]> {
-  const db = await getDB()
-  const all = await db.getAll('keyValue')
-  return all
-    .filter(e => e.key.startsWith('mesh_node_'))
-    .map(e => e.data as MeshNode)
 }

@@ -20,16 +20,8 @@ import {
   cacheRelocationPriority,
   getCachedRelocationPriority,
   cacheOfflineManifest,
-  cacheMeshNode,
-  getCachedMeshNode,
-  cacheMeshPacket,
-  getCachedMeshPacket,
-  cacheMeshNodes,
-  getCachedMeshNodes,
 } from './offlineCache'
-import type { MeshNode, MeshPacket } from '../types'
 import type {
-  AdvisoryItem,
   AdvisoryResponse,
   AuthUser,
   BacktestResponse,
@@ -153,11 +145,6 @@ export async function fetchVillages(): Promise<VillageResult[]> {
   )
 }
 
-export async function fetchVillage(id: string): Promise<VillageResult> {
-  const { data } = await client.get<VillageResult>(`/api/villages/${id}`)
-  return data
-}
-
 export async function fetchSafeZones(): Promise<SafeZoneResult[]> {
   return fetchWithFallback(
     async () => {
@@ -204,11 +191,6 @@ export async function runScenario(adjustments: ScenarioAdjustments): Promise<Sce
 // ---- Advisory (machine proposes, authority decides) ----
 export async function fetchAdvisory(): Promise<AdvisoryResponse> {
   const { data } = await client.get<AdvisoryResponse>('/api/advisory')
-  return data
-}
-
-export async function fetchVillageAdvisory(villageId: string): Promise<AdvisoryItem> {
-  const { data } = await client.get<AdvisoryItem>(`/api/advisory/${villageId}`)
   return data
 }
 
@@ -291,11 +273,6 @@ export async function fetchSOSLatest(): Promise<SOSLatestItem[]> {
   )
 }
 
-export async function fetchSOSPriorityQueue(): Promise<SOSReport[]> {
-  const { data } = await client.get<SOSReport[]>('/api/sos/priority-queue')
-  return data
-}
-
 export async function fetchSOSStats(): Promise<SOSStats> {
   return fetchWithFallback(
     async () => {
@@ -307,39 +284,9 @@ export async function fetchSOSStats(): Promise<SOSStats> {
   )
 }
 
-export async function fetchSOSAggregate(): Promise<Record<string, unknown>> {
-  const { data } = await client.get('/api/sos/aggregate')
-  return data
-}
-
 // ---- Validation: real-data ingestion + backtest ----
-export async function fetchRedZones(): Promise<{ source_note: string; villages: VillageResult[] }> {
-  const { data } = await client.get('/api/validation/red-zones')
-  return data
-}
-
 export async function fetchBacktest(): Promise<BacktestResponse> {
   const { data } = await client.get<BacktestResponse>('/api/validation/backtest')
-  return data
-}
-
-export async function registerValidationEvent(event: {
-  id: string
-  village_id?: string
-  location_name: string
-  hazard_type: string
-  date: string
-  observed_severity: number
-  magnitude?: string
-  source?: string
-  note?: string
-}): Promise<{ id: string; registered: boolean }> {
-  const { data } = await client.post('/api/validation/register-event', event)
-  return data
-}
-
-export async function fetchEvents(): Promise<Record<string, unknown>[]> {
-  const { data } = await client.get('/api/events')
   return data
 }
 
@@ -353,11 +300,6 @@ export async function fetchGroundReality(): Promise<GroundRealityResult[]> {
     (data) => cacheGroundReality(data),
     () => getCachedGroundReality()
   )
-}
-
-export async function fetchVillageGroundReality(villageId: string): Promise<GroundRealityResult> {
-  const { data } = await client.get<GroundRealityResult>(`/api/ground-reality/${villageId}`)
-  return data
 }
 
 export async function fetchOperationalPriority(): Promise<OperationalPriorityItem[]> {
@@ -381,40 +323,6 @@ export async function fetchAndCacheManifest() {
     console.warn('Failed to fetch offline manifest:', err)
     return null
   }
-}
-
-// ---- LifeLink Mesh ----
-export async function registerMeshNode(node: MeshNode): Promise<{ registered: boolean; node_id: string }> {
-  const { data } = await client.post('/api/mesh/node/register', node)
-  await cacheMeshNode(node).catch(() => {})
-  return data
-}
-
-export async function queueMeshPacket(packet: MeshPacket): Promise<{ queued: boolean; packet_id: string }> {
-  const { data } = await client.post('/api/mesh/packet/queue', packet)
-  await cacheMeshPacket(packet).catch(() => {})
-  return data
-}
-
-export async function fetchMeshPackets(nodeId: string, maxPackets = 50): Promise<{ node_id: string; packets: MeshPacket[] }> {
-  const { data } = await client.get(`/api/mesh/packets?node_id=${nodeId}&max_packets=${maxPackets}`)
-  return data
-}
-
-export async function fetchMeshNodes(): Promise<{ nodes: MeshNode[] }> {
-  const { data } = await client.get('/api/mesh/nodes')
-  await cacheMeshNodes(data.nodes).catch(() => {})
-  return data
-}
-
-export async function meshSync(req: { node_id: string }): Promise<{ node_id: string; packets: MeshPacket[] }> {
-  const { data } = await client.post('/api/mesh/sync', req)
-  return data
-}
-
-// ---- Online status helper ----
-export function isOnline(): boolean {
-  return typeof navigator !== 'undefined' ? navigator.onLine : true
 }
 
 export default client

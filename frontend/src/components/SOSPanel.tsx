@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { AlertTriangle, Clock, Activity, Heart, Filter, RefreshCw, Phone, MapPin, Users, Wifi, WifiOff } from 'lucide-react'
+import { AlertTriangle, Clock, Filter, RefreshCw, Phone, Users, Wifi, WifiOff } from 'lucide-react'
 import * as api from '../services/api'
 import { useAlertWebSocket } from '../hooks/useWebSocket'
 import { fmtNumber } from '../utils'
@@ -15,7 +15,7 @@ const SEV: Record<number, { bg: string; text: string; border: string; label: str
 const ST: Record<string, string> = { NEW: 'bg-danger/15 text-danger-light', ACKNOWLEDGED: 'bg-gold-400/15 text-gold-400', IN_PROGRESS: 'bg-violet-500/15 text-violet-300', RESOLVED: 'bg-safe/15 text-safe', PENDING_SYNC: 'bg-gold-400/15 text-gold-400' }
 const EMOJI: Record<string, string> = { FLOOD: '🌊', EARTHQUAKE: '🏚️', TRAPPED: '🚧', MEDICAL: '🏥', ROAD_BLOCKED: '🛤️', WATER_SHORTAGE: '💧', FIRE: '🔥', OTHER: '⚠️' }
 
-export default function SOSPanel({ onShowForm }: { onShowForm: () => void }) {
+export default function SOSPanel() {
   const [reports, setReports] = useState<SOSReport[]>([])
   const [stats, setStats] = useState<SOSStats | null>(null)
   const [filter, setFilter] = useState<{ status: string; severity: string }>({ status: '', severity: '' })
@@ -67,7 +67,6 @@ export default function SOSPanel({ onShowForm }: { onShowForm: () => void }) {
         </div>
         <div className="flex gap-2 sm:gap-3">
           <button onClick={loadData} className="flex items-center gap-2 rounded-xl border border-theme bg-bg-card px-3 py-2 text-xs font-medium text-violet-300/60 transition hover:bg-violet-500/5 hover:text-white sm:px-4 sm:py-2.5 sm:text-sm"><RefreshCw size={13} /> Refresh</button>
-          <button onClick={onShowForm} className="flex items-center gap-2 rounded-xl bg-danger px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-danger-light hover:shadow-glow-r active:scale-[0.98] sm:px-5 sm:py-2.5 sm:text-sm">🚨 SOS</button>
         </div>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-[1fr_420px]">

@@ -8,7 +8,6 @@ import ShelterPanel from './ShelterPanel'
 import RelocationPanel from './RelocationPanel'
 import ScenarioSimulator from './ScenarioSimulator'
 import SOSPanel from './SOSPanel'
-import SOSReportForm from './SOSReportForm'
 import GroundRealityPanel from './GroundRealityPanel'
 import OperationalPriorityTable from './OperationalPriorityTable'
 import AccountsPanel from './AccountsPanel'
@@ -67,7 +66,6 @@ export default function Dashboard({
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('risk')
   const [search, setSearch] = useState('')
-  const [showSOSForm, setShowSOSForm] = useState(false)
   const [sosStats, setSosStats] = useState<SOSStats | null>(null)
   const [isOnline, setIsOnline] = useState(true)
   const [tabKey, setTabKey] = useState(0)
@@ -119,7 +117,7 @@ export default function Dashboard({
           <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
             <div key={tabKey} className="animate-tab-change">
               {activeTab === 'risk' && <RiskMapTab villages={filteredVillages} safeZones={safeZones} selectedVillageId={selectedVillageId} onSelectVillage={onSelectVillage} selectedVillage={selectedVillage} onFindSafeZone={onFindSafeZone} isLoadingRecommendation={isLoadingRecommendation} recommendation={recommendation} search={search} onSearch={setSearch} />}
-              {activeTab === 'sos' && <SOSPanel onShowForm={() => setShowSOSForm(true)} />}
+              {activeTab === 'sos' && <SOSPanel />}
               {activeTab === 'ground' && <GroundRealityPanel />}
               {activeTab === 'accounts' && user?.role === 'ADMIN' && <AccountsPanel />}
               {activeTab === 'scenario' && <ScenarioSimulator onRunScenario={onRunScenario} comparison={scenarioComparison} isRunning={isRunningScenario} />}
@@ -137,7 +135,6 @@ export default function Dashboard({
           </div>
         </main>
       </div>
-      {showSOSForm && <SOSReportForm onSubmit={() => loadStats()} onClose={() => setShowSOSForm(false)} />}
     </div>
   )
 }

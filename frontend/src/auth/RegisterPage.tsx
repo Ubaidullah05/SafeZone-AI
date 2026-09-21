@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Link } from 'react-router-dom'
-import { Shield, Mail, KeyRound, Lock, ArrowLeft, UserPlus, Eye, EyeOff, Fingerprint, ShieldAlert } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Shield, Mail, KeyRound, ArrowLeft, UserPlus, Eye, EyeOff, Fingerprint } from 'lucide-react'
 import { useAuth } from './AuthContext'
 
 export default function RegisterPage() {

@@ -85,5 +85,3 @@ export function useAlertWebSocket(enabled = true): AlertSocket {
 
   return { alerts, connected, send }
 }
-
-export default useAlertWebSocket
