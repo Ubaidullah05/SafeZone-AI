@@ -5,7 +5,7 @@ import type { Role } from '../types'
 
 interface ProtectedRouteProps {
   children: ReactNode
-  requiredRole?: Role
+  requiredRole?: Role | Role[]
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
@@ -34,8 +34,11 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
 
   // Role-based access control
-  if (requiredRole && user.role !== requiredRole) {
-    return null
+  if (requiredRole) {
+    const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+    if (!allowed.includes(user.role as Role)) {
+      return null
+    }
   }
 
   return <>{children}</>
