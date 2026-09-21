@@ -27,6 +27,7 @@ import {
   cacheMeshNodes,
   getCachedMeshNodes,
 } from './offlineCache'
+import { queueSOS, syncSOSQueue, type QueuedSOS } from './offlineQueue'
 import type { MeshNode, MeshPacket } from '../types'
 import type {
   AdvisoryItem,
@@ -237,20 +238,39 @@ export async function submitSOS(report: {
     const { data } = await client.post<SOSReport>('/api/sos/submit', report)
     return data
   } catch (err) {
-    // Offline: store locally for later sync from the service worker
-    if (!navigator.onLine) {
-      const localReport: SOSReport = {
-        ...report,
-        id: `LOCAL-${Date.now()}`,
-        status: 'PENDING_SYNC',
-        priority_score: 50,
-        timestamp: new Date().toISOString(),
-      }
-      await addCachedSOSReport(localReport)
-      return localReport
+    // Offline or network error: store locally in queue & cache for auto-sync
+    const localId = `LOCAL-${Date.now()}`
+    const localReport: SOSReport = {
+      ...report,
+      id: localId,
+      status: 'PENDING_SYNC',
+      priority_score: 50,
+      timestamp: new Date().toISOString(),
     }
-    throw err
+    queueSOS({ ...report, id: localId })
+    await addCachedSOSReport(localReport).catch(() => {})
+    return localReport
   }
+}
+
+export async function syncOfflineQueue(): Promise<{ synced: number; failed: number }> {
+  return syncSOSQueue(async (item: QueuedSOS) => {
+    const payload = {
+      reporter_name: String(item.reporter_name || 'Anonymous'),
+      reporter_phone: String(item.reporter_phone || ''),
+      village_id: String(item.village_id || ''),
+      village_name: String(item.village_name || ''),
+      emergency_type: String(item.emergency_type || 'OTHER'),
+      severity: Number(item.severity) || 3,
+      description: String(item.description || ''),
+      people_affected: Number(item.people_affected) || 1,
+      medical_emergency: Boolean(item.medical_emergency),
+      medical_details: String(item.medical_details || ''),
+      latitude: Number(item.latitude) || 0,
+      longitude: Number(item.longitude) || 0,
+    }
+    await client.post<SOSReport>('/api/sos/submit', payload)
+  })
 }
 
 export async function fetchSOSReports(filters: { village_id?: string; status?: string } = {}): Promise<SOSReport[]> {

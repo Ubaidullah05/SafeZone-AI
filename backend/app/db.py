@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 import psycopg2
-from psycopg2.extras import RealDictRow
+from psycopg2.extras import RealDictCursor
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -44,7 +44,7 @@ def _conn_str() -> str:
 
 def _connect():
     """Open a raw PostgreSQL connection."""
-    conn = psycopg2.connect(_conn_str(), cursor_factory=RealDictRow)
+    conn = psycopg2.connect(_conn_str(), cursor_factory=RealDictCursor)
     conn.autocommit = False
     return conn
 
@@ -346,16 +346,16 @@ def _seed_demo_sos(conn) -> None:
             timestamp=r["timestamp"],
         )
         cur.execute(
-            "INSERT INTO sos_reports "
-            "(id, reporter_name, reporter_phone, village_id, village_name, "
-            "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
-            "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (r["id"], r["reporter_name"], "", r["village_id"], r["village_name"],
-             r["emergency_type"], r["severity"], r["description"], r["people_affected"],
-             r["medical_emergency"], "", r["latitude"], r["longitude"], r["timestamp"],
-             "NEW", priority, 0, 0),
-        )
+    "INSERT INTO sos_reports "
+    "(id, reporter_name, reporter_phone, village_id, village_name, "
+    "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
+    "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
+    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+    (r["id"], r["reporter_name"], "", r["village_id"], r["village_name"],
+     r["emergency_type"], r["severity"], r["description"], r["people_affected"],
+     int(r["medical_emergency"]), "", r["latitude"], r["longitude"], r["timestamp"],
+     "NEW", priority, 0, 0),
+)
     conn.commit()
 
 
@@ -470,7 +470,7 @@ def insert_safe_zones(zones: list[dict]) -> int:
             cur.execute(
                 "INSERT INTO safe_zones "
                 "(id, name, latitude, longitude, capacity, medical_access, safety_score, "
-                "road_access_score, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "road_access_score, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                 "ON CONFLICT(id) DO UPDATE SET name=excluded.name, latitude=excluded.latitude, "
                 "longitude=excluded.longitude, capacity=excluded.capacity, "
                 "medical_access=excluded.medical_access, safety_score=excluded.safety_score, "
