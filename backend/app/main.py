@@ -663,7 +663,9 @@ def list_events():
     """Public list of registered validation events."""
     conn = db.get_conn()
     try:
-        rows = conn.execute("SELECT * FROM events ORDER BY date").fetchall()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM events ORDER BY date")
+        rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
