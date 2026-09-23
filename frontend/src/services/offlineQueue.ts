@@ -86,7 +86,7 @@ export async function syncSOSQueue(
 export function initOfflineSync(
     syncFn: () => Promise<{ synced: number; failed: number }>
 ): () => void {
-    if (typeof window === "undefined") return () => {};
+    if (typeof window === "undefined") return () => { };
 
     let isSyncing = false;
 
