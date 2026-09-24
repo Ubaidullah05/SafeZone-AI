@@ -24,7 +24,7 @@ import bcrypt
 import jwt
 
 from . import db
-from .roles import Role, is_authority
+from .roles import is_authority
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_SECONDS = int(os.environ.get("SAFEZONE_JWT_EXPIRY", 86400 * 7))  # 7 days

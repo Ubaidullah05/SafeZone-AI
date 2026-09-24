@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   AlertTriangle,
   MapPin,
@@ -9,7 +9,6 @@ import {
   WifiOff,
   Satellite,
   Bluetooth,
-  Radio,
   Zap,
 } from 'lucide-react'
 import * as api from '../services/api'
@@ -46,13 +45,14 @@ function findNearestVillage(villages: VillageResult[], lat: number, lng: number)
 
 export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps) {
   const [phase, setPhase] = useState<
-    'locating' | 'mode_select' | 'sending' | 'sat_ble_pairing' | 'sat_compressing' | 'sat_uplinking' | 'success' | 'error'
+    'locating' | 'sending' | 'sat_ble_pairing' | 'sat_compressing' | 'sat_uplinking' | 'success' | 'error'
   >('locating')
   const [errorMsg, setErrorMsg] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [useSatcom, setUseSatcom] = useState(false)
   const [satResponse, setSatResponse] = useState<SatelliteTransmitResponse | null>(null)
   const [compressionStats, setCompressionStats] = useState({ rawBytes: 648, burstBytes: 44, ratio: 93.2 })
+  const initiatedRef = useRef(false)
 
   // Trigger standard terrestrial send
   const sendTerrestrialSOS = useCallback(
@@ -154,50 +154,44 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
   )
 
   useEffect(() => {
+    if (initiatedRef.current) return
+    initiatedRef.current = true
+
+    const handleInitialCoords = (lat: number, lng: number) => {
+      setCoords({ lat, lng })
+      sendTerrestrialSOS(lat, lng)
+    }
+
     if (!navigator.geolocation) {
       // Use Kedarnath coordinates as default if browser geolocation not supported
-      const fallbackLat = 30.7346
-      const fallbackLng = 79.0669
-      setCoords({ lat: fallbackLat, lng: fallbackLng })
-      if (useSatcom) {
-        sendSatelliteSOS(fallbackLat, fallbackLng)
-      } else {
-        sendTerrestrialSOS(fallbackLat, fallbackLng)
-      }
+      handleInitialCoords(30.7346, 79.0669)
       return
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        if (useSatcom) {
-          sendSatelliteSOS(pos.coords.latitude, pos.coords.longitude)
-        } else {
-          sendTerrestrialSOS(pos.coords.latitude, pos.coords.longitude)
-        }
+        handleInitialCoords(pos.coords.latitude, pos.coords.longitude)
       },
-      (err) => {
+      () => {
         // In prototype, don't block on GPS denial - fall back to Kedarnath coordinate
-        const fallbackLat = 30.7346
-        const fallbackLng = 79.0669
-        setCoords({ lat: fallbackLat, lng: fallbackLng })
-        if (useSatcom) {
-          sendSatelliteSOS(fallbackLat, fallbackLng)
-        } else {
-          sendTerrestrialSOS(fallbackLat, fallbackLng)
-        }
+        handleInitialCoords(30.7346, 79.0669)
       },
       { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
     )
-  }, [useSatcom, sendSatelliteSOS, sendTerrestrialSOS])
+  }, [sendTerrestrialSOS])
 
   const switchToSatcom = () => {
     setUseSatcom(true)
-    if (coords) {
-      sendSatelliteSOS(coords.lat, coords.lng)
-    } else {
-      sendSatelliteSOS(30.7346, 79.0669)
-    }
+    const lat = coords ? coords.lat : 30.7346
+    const lng = coords ? coords.lng : 79.0669
+    sendSatelliteSOS(lat, lng)
+  }
+
+  const switchToTerrestrial = () => {
+    setUseSatcom(false)
+    const lat = coords ? coords.lat : 30.7346
+    const lng = coords ? coords.lng : 79.0669
+    sendTerrestrialSOS(lat, lng)
   }
 
   return (
@@ -238,12 +232,7 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
         <div className="mb-5 flex rounded-xl border border-theme bg-panel p-1 text-xs">
           <button
             type="button"
-            onClick={() => {
-              if (useSatcom) {
-                setUseSatcom(false)
-                if (coords) sendTerrestrialSOS(coords.lat, coords.lng)
-              }
-            }}
+            onClick={switchToTerrestrial}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg font-medium transition ${
               !useSatcom ? 'bg-bg-card text-white shadow-sm' : 'text-muted hover:text-white'
             }`}

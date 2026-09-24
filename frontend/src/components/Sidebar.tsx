@@ -1,4 +1,4 @@
-import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, Menu, X, Satellite, type LucideIcon } from 'lucide-react'
+import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, X, Satellite, type LucideIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface NavItem {

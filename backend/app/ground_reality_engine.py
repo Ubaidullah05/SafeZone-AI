@@ -14,7 +14,7 @@ and an Operational Priority ranking.
 """
 
 from .models import VillageInput, GroundRealityResult, OperationalPriorityItem
-from .sos_engine import aggregate_by_village, load_sos_reports
+from .sos_engine import aggregate_by_village
 from .risk_engine import calculate_risk
 
 # Weights for the combined scoring formula

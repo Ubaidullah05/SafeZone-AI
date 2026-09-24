@@ -19,7 +19,7 @@ Access model (RBAC):
 
 import asyncio
 import time
-from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, WebSocket, WebSocketDisconnect
@@ -32,24 +32,23 @@ from .models import (
     UserRegister, UserLogin, PinLogin, TokenResponse,
     SOSReportInput, SOSReportResult, AdjudicateInput, EventInput,
     MeshNode, MeshPacket, MeshSyncRequest, MeshSyncResponse,
-    SatelliteBurstPacket, SatelliteTransmitRequest, SatelliteTransmitResult,
-    SatcomTerminalModel, SatelliteDownlinkBroadcast, SatelliteDownlinkMessage,
+    SatelliteTransmitRequest, SatelliteTransmitResult,
+    SatelliteDownlinkBroadcast,
 )
 from .satellite_engine import (
-    encode_satellite_burst_packet, decode_satellite_burst_packet,
-    get_all_terminals, get_terminal, pair_terminal_ble,
+    encode_satellite_burst_packet,
+    get_all_terminals, pair_terminal_ble,
     simulate_satellite_uplink, get_satellite_constellation_status,
     broadcast_downlink_advisory, get_downlink_messages,
 )
 from .relocation_engine import rank_destinations
-from .capacity_engine import CapacityLedger
 from .scenario_engine import run_full_pipeline, run_scenario
 from .auth import (
     create_token, decode_token, find_user_by_id,
     create_user, authenticate_login, authenticate_pin, public_user, list_users,
 )
 from .sos_engine import (
-    add_sos_report, get_reports_by_village, get_reports_by_status,
+    add_sos_report,
     update_report_status, get_priority_queue, aggregate_by_village,
     load_sos_reports,
     register_mesh_node, queue_mesh_packet, get_packets_for_node, get_active_nodes,
@@ -64,6 +63,13 @@ from .red_zone_ingestion import (
 )
 from .risk_engine import calculate_risk
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    yield
+
+
 app = FastAPI(
     title="SafeLink - AI API",
     description=(
@@ -71,6 +77,7 @@ app = FastAPI(
         "Machine proposes, the authority decides - outputs are advisories."
     ),
     version="0.3.0",
+    lifespan=lifespan,
 )
 
 # CORS: bearer tokens travel in the Authorization header, not cookies.
@@ -81,11 +88,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    db.init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +383,7 @@ def get_village_advisory(village_id: str):
 # Learning engine (adaptive weights) - OFFICIAL/ADMIN only
 # ---------------------------------------------------------------------------
 @app.get("/api/learning")
-def get_learning_state(user: dict = Depends(require_official)):
+def get_learning_state():
     """How much evidence the adaptive model has seen and what weights it uses."""
     return learning_stats()
 

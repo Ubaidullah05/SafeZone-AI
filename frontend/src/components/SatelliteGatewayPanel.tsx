@@ -2,11 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Radio,
   Satellite,
-  WifiOff,
   Bluetooth,
   Send,
   RefreshCw,
-  Clock,
   BatteryCharging,
   Zap,
   CheckCircle2,

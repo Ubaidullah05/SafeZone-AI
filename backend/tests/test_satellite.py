@@ -8,11 +8,9 @@ from app.satellite_engine import (
     get_all_terminals,
     pair_terminal_ble,
     simulate_satellite_uplink,
-    get_satellite_constellation_status,
     broadcast_downlink_advisory,
     get_downlink_messages,
 )
-from app.models import SatelliteTransmitRequest
 from app.main import app
 from fastapi.testclient import TestClient
 
