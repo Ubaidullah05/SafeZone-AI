@@ -359,6 +359,7 @@ def _seed_demo_sos(conn) -> None:
              "NEW", priority, 0, 0),
         )
     conn.commit()
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------
