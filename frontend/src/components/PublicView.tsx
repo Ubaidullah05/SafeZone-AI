@@ -232,7 +232,7 @@ export default function PublicView() {
               ['📍 Know your shelter', 'Check the map for the nearest shelter and plan your route now.'],
               ['📦 Carry essentials', 'Water, medicine, documents, warm clothing, phone, and a power bank.'],
               ['🚶 Move early', 'Follow evacuation announcements. Do not wait for a rescue request.'],
-              ['📡 One-tap SOS', 'If you are trapped or injured, use the SOS button. Toggle mobile data if a message fails.'],
+              ['📡 One-tap SOS & Satcom', 'If mobile towers are down, SafeZone pairs via Bluetooth with nearby ISRO DAT-SG satcom terminals.'],
             ].map(([t, d]) => (
               <div key={t} className="rounded-2xl border border-theme bg-panel p-4">
                 <p className="text-sm font-semibold">{t}</p>

@@ -99,6 +99,12 @@ CREATE TABLE IF NOT EXISTS sos_reports (
     priority_score    REAL NOT NULL DEFAULT 0,
     relay_hops        INTEGER NOT NULL DEFAULT 0,
     reached_gateway   INTEGER NOT NULL DEFAULT 0,
+    transmission_channel TEXT NOT NULL DEFAULT 'TERRESTRIAL',
+    sat_terminal_id   TEXT NOT NULL DEFAULT '',
+    sat_constellation TEXT NOT NULL DEFAULT '',
+    sat_latency_ms    REAL NOT NULL DEFAULT 0,
+    sat_signal_dbhz   REAL NOT NULL DEFAULT 0,
+    raw_sat_packet    TEXT NOT NULL DEFAULT '',
     adjudicated_by    TEXT,
     adjudicated_at    TEXT
 );
@@ -203,6 +209,33 @@ CREATE TABLE IF NOT EXISTS mesh_packets (
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_status ON mesh_packets(status);
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_dest ON mesh_packets(destination_node_id);
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_priority ON mesh_packets(priority, timestamp);
+
+CREATE TABLE IF NOT EXISTS satcom_terminals (
+    terminal_id      TEXT PRIMARY KEY,
+    name             TEXT NOT NULL,
+    model            TEXT NOT NULL,
+    latitude         REAL NOT NULL,
+    longitude        REAL NOT NULL,
+    altitude_m       REAL NOT NULL DEFAULT 0,
+    battery_pct      INTEGER NOT NULL DEFAULT 100,
+    ble_paired       INTEGER NOT NULL DEFAULT 0,
+    ble_signal_dbm   INTEGER NOT NULL DEFAULT -60,
+    uplink_c_n0_dbhz REAL NOT NULL DEFAULT 44.0,
+    status           TEXT NOT NULL DEFAULT 'ONLINE',
+    sat_lock         INTEGER NOT NULL DEFAULT 1,
+    last_ping        TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS satcom_downlink_messages (
+    id           TEXT PRIMARY KEY,
+    terminal_id  TEXT NOT NULL,
+    message_type TEXT NOT NULL DEFAULT 'ADVISORY',
+    title        TEXT NOT NULL,
+    content      TEXT NOT NULL,
+    timestamp    TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'BEAMED_VIA_SATELLITE',
+    sat_carrier  TEXT NOT NULL DEFAULT 'GSAT-7R MSS Forward Link'
+);
 """
 
 

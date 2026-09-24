@@ -39,6 +39,10 @@ import type {
   TokenResponse,
   VillageResult,
   Role,
+  SatcomTerminal,
+  SatelliteConstellationStatus,
+  SatelliteDownlinkMessage,
+  SatelliteTransmitResponse,
 } from '../types'
 
 // Backend proxy target (Vite dev server proxies /api and /ws automatically).
@@ -323,6 +327,69 @@ export async function fetchAndCacheManifest() {
     console.warn('Failed to fetch offline manifest:', err)
     return null
   }
+}
+
+// ---- Satellite Backhaul & ISRO DAT-SG / NavIC Simulation ----
+export async function transmitSatelliteSOS(payload: {
+  village_id: string
+  latitude: number
+  longitude: number
+  severity?: number
+  people_affected?: number
+  medical_emergency?: boolean
+  emergency_type?: string
+  description?: string
+  reporter_name?: string
+  reporter_phone?: string
+  terminal_id?: string
+  raw_packet?: string
+}): Promise<SatelliteTransmitResponse> {
+  const { data } = await client.post<SatelliteTransmitResponse>('/api/satellite/transmit', payload)
+  return data
+}
+
+export async function fetchSatelliteStatus(): Promise<SatelliteConstellationStatus> {
+  const { data } = await client.get<SatelliteConstellationStatus>('/api/satellite/status')
+  return data
+}
+
+export async function fetchSatcomTerminals(): Promise<SatcomTerminal[]> {
+  const { data } = await client.get<{ terminals: SatcomTerminal[] }>('/api/satellite/terminals')
+  return data.terminals || []
+}
+
+export async function pairSatcomTerminal(terminalId: string, deviceName = 'Civilian Mobile Phone'): Promise<{
+  paired: boolean
+  terminal: SatcomTerminal
+  pairing_protocol: string
+  message: string
+}> {
+  const { data } = await client.post('/api/satellite/terminal/pair', {
+    terminal_id: terminalId,
+    device_name: deviceName,
+  })
+  return data
+}
+
+export async function broadcastSatelliteDownlink(
+  title: string,
+  content: string,
+  messageType = 'ADVISORY',
+  targetTerminal = 'ALL'
+): Promise<SatelliteDownlinkMessage> {
+  const { data } = await client.post<SatelliteDownlinkMessage>('/api/satellite/downlink/broadcast', {
+    title,
+    content,
+    message_type: messageType,
+    target_terminal: targetTerminal,
+  })
+  return data
+}
+
+export async function fetchSatelliteDownlinks(terminalId?: string): Promise<SatelliteDownlinkMessage[]> {
+  const params = terminalId ? `?terminal_id=${terminalId}` : ''
+  const { data } = await client.get<{ messages: SatelliteDownlinkMessage[] }>(`/api/satellite/downlink/messages${params}`)
+  return data.messages || []
 }
 
 export default client
