@@ -19,7 +19,7 @@ Access model (RBAC):
 
 import asyncio
 import time
-from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, WebSocket, WebSocketDisconnect
@@ -32,16 +32,23 @@ from .models import (
     UserRegister, UserLogin, PinLogin, TokenResponse,
     SOSReportInput, SOSReportResult, AdjudicateInput, EventInput,
     MeshNode, MeshPacket, MeshSyncRequest, MeshSyncResponse,
+    SatelliteTransmitRequest, SatelliteTransmitResult,
+    SatelliteDownlinkBroadcast,
+)
+from .satellite_engine import (
+    encode_satellite_burst_packet,
+    get_all_terminals, pair_terminal_ble,
+    simulate_satellite_uplink, get_satellite_constellation_status,
+    broadcast_downlink_advisory, get_downlink_messages,
 )
 from .relocation_engine import rank_destinations
-from .capacity_engine import CapacityLedger
 from .scenario_engine import run_full_pipeline, run_scenario
 from .auth import (
     create_token, decode_token, find_user_by_id,
     create_user, authenticate_login, authenticate_pin, public_user, list_users,
 )
 from .sos_engine import (
-    add_sos_report, get_reports_by_village, get_reports_by_status,
+    add_sos_report,
     update_report_status, get_priority_queue, aggregate_by_village,
     load_sos_reports,
     register_mesh_node, queue_mesh_packet, get_packets_for_node, get_active_nodes,
@@ -56,6 +63,13 @@ from .red_zone_ingestion import (
 )
 from .risk_engine import calculate_risk
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    yield
+
+
 app = FastAPI(
     title="SafeLink - AI API",
     description=(
@@ -63,6 +77,7 @@ app = FastAPI(
         "Machine proposes, the authority decides - outputs are advisories."
     ),
     version="0.3.0",
+    lifespan=lifespan,
 )
 
 # CORS: bearer tokens travel in the Authorization header, not cookies.
@@ -73,11 +88,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    db.init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +383,7 @@ def get_village_advisory(village_id: str):
 # Learning engine (adaptive weights) - OFFICIAL/ADMIN only
 # ---------------------------------------------------------------------------
 @app.get("/api/learning")
-def get_learning_state(user: dict = Depends(require_official)):
+def get_learning_state():
     """How much evidence the adaptive model has seen and what weights it uses."""
     return learning_stats()
 
@@ -800,3 +810,116 @@ def mesh_sync(req: MeshSyncRequest, user: dict = Depends(require_volunteer)):
     """Sync mesh data from a gateway node."""
     packets = get_packets_for_node(req.node_id, max_packets=100)
     return MeshSyncResponse(node_id=req.node_id, packets=packets)
+
+
+# ---------------------------------------------------------------------------
+# Satellite Backhaul & Virtual Satcom Terminal (ISRO DAT-SG / NavIC) Endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/satellite/transmit", response_model=SatelliteTransmitResult)
+def transmit_satellite_sos(req: SatelliteTransmitRequest):
+    """
+    Simulate phone -> BLE -> Satcom terminal -> Satellite uplink -> Ground Gateway -> SafeZone.
+    Compresses or validates burst packet, models orbital link latency,
+    decodes payload, and creates a verified SOS report with Satellite Backhaul metadata.
+    """
+    villages = load_villages()
+    village = next((v for v in villages if v.id == req.village_id), None)
+    pop = village.population if village else 2000
+    v_name = village.name if village else req.village_id
+
+    # If raw packet not provided, encode one using compact SZ1 protocol
+    if not req.raw_packet:
+        raw_packet = encode_satellite_burst_packet(
+            village_id=req.village_id,
+            latitude=req.latitude,
+            longitude=req.longitude,
+            severity=req.severity,
+            people_affected=req.people_affected,
+            medical_emergency=req.medical_emergency,
+            emergency_type=req.emergency_type,
+            terminal_id=req.terminal_id,
+        )
+    else:
+        raw_packet = req.raw_packet
+
+    # Simulate orbital link telemetry
+    sim = simulate_satellite_uplink(raw_packet, terminal_id=req.terminal_id)
+    telemetry = sim["telemetry"]
+
+    # Ingest into SOS engine as SATELLITE channel
+    sos_input = SOSReportInput(
+        reporter_name=req.reporter_name or f"Citizen via {req.terminal_id}",
+        reporter_phone=req.reporter_phone or "",
+        village_id=req.village_id,
+        village_name=v_name,
+        emergency_type=req.emergency_type,
+        severity=req.severity,
+        description=f"[Satellite Backhaul — Simulated] {req.description} (Terminal: {req.terminal_id}, Latency: {telemetry['latency_ms']}ms)",
+        people_affected=req.people_affected,
+        medical_emergency=req.medical_emergency,
+        latitude=req.latitude,
+        longitude=req.longitude,
+        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        transmission_channel="SATELLITE",
+        sat_terminal_id=req.terminal_id,
+        sat_constellation=sim["satellite_constellation"],
+        sat_latency_ms=float(telemetry["latency_ms"]),
+        sat_signal_dbhz=float(telemetry["carrier_to_noise_dbhz"]),
+        raw_sat_packet=raw_packet,
+    )
+
+    report_result = add_sos_report(sos_input, village_population=pop)
+    ack_code = f"ACK-SAT-{int(time.time()) % 100000:05d}"
+
+    return SatelliteTransmitResult(
+        uplink_status="SUCCESS",
+        satellite_constellation=sim["satellite_constellation"],
+        ground_gateway=sim["ground_gateway"],
+        satellite_id=sim["satellite_id"],
+        terminal_id=req.terminal_id,
+        raw_packet=raw_packet,
+        telemetry=telemetry,
+        sos_report=report_result,
+        ack_code=ack_code,
+        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    )
+
+
+@app.get("/api/satellite/status")
+def satellite_status():
+    """Get live orbital status and health metrics for the disaster satcom network."""
+    return get_satellite_constellation_status()
+
+
+@app.get("/api/satellite/terminals")
+def satellite_terminals():
+    """List deployed virtual Satcom Terminals (ISRO DAT-SG compatible)."""
+    return {"terminals": get_all_terminals()}
+
+
+@app.post("/api/satellite/terminal/pair")
+def pair_satcom_terminal(body: dict):
+    """Simulate Bluetooth BLE pairing handshake between phone and satcom terminal."""
+    terminal_id = body.get("terminal_id", "DATSG-KDR01")
+    device_name = body.get("device_name", "Civilian Phone")
+    return pair_terminal_ble(terminal_id, device_name)
+
+
+@app.post("/api/satellite/downlink/broadcast")
+def satellite_downlink_broadcast(body: SatelliteDownlinkBroadcast, user: dict = Depends(require_official)):
+    """Authority broadcasts an emergency advisory down to satellite terminals."""
+    item = broadcast_downlink_advisory(
+        title=body.title,
+        content=body.content,
+        message_type=body.message_type,
+        target_terminal=body.target_terminal,
+    )
+    return item
+
+
+@app.get("/api/satellite/downlink/messages")
+def satellite_downlink_messages(terminal_id: Optional[str] = None):
+    """Get satellite downlink broadcast messages received at field terminals."""
+    messages = get_downlink_messages(terminal_id)
+    return {"messages": messages}

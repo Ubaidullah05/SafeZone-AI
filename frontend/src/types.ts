@@ -239,6 +239,12 @@ export interface SOSReport {
   adjudicated_by?: string | null
   adjudicated_at?: string | null
   relay_hops?: number
+  transmission_channel?: 'TERRESTRIAL' | 'SATELLITE' | 'BLE_MESH' | string
+  sat_terminal_id?: string
+  sat_constellation?: string
+  sat_latency_ms?: number
+  sat_signal_dbhz?: number
+  raw_sat_packet?: string
 }
 
 export interface SOSStats {
@@ -282,4 +288,79 @@ export interface AuthSession {
   user: AuthUser
   cachedAt?: number
 }
+
+// ---------------------------------------------------------------------------
+// Satellite Backhaul & ISRO DAT-SG / NavIC Simulation Interfaces
+// ---------------------------------------------------------------------------
+
+export interface SatcomTerminal {
+  terminal_id: string
+  name: string
+  model: string
+  latitude: number
+  longitude: number
+  altitude_m: number
+  battery_pct: number
+  ble_paired: boolean
+  ble_signal_dbm: number
+  uplink_c_n0_dbhz: number
+  status: 'ONLINE' | 'OFFLINE' | 'TRANSMITTING' | string
+  sat_lock: boolean
+  last_ping: string
+  paired_device?: string
+}
+
+export interface SatelliteTelemetry {
+  latency_ms: number
+  carrier_to_noise_dbhz: number
+  doppler_shift_hz: number
+  uplink_frequency_mhz: number
+  downlink_frequency_mhz: number
+  packet_size_bytes: number
+  compression_ratio_pct: number
+  link_margin_db: number
+  orbital_slot: string
+}
+
+export interface SatelliteTransmitResponse {
+  uplink_status: string
+  satellite_constellation: string
+  ground_gateway: string
+  satellite_id: string
+  terminal_id: string
+  raw_packet: string
+  telemetry: SatelliteTelemetry
+  sos_report: SOSReport
+  ack_code: string
+  timestamp: string
+}
+
+export interface SatelliteConstellationStatus {
+  constellation_name: string
+  primary_satellite: string
+  secondary_satellite: string
+  transponder_status: string
+  ground_station_link: string
+  coverage_region: string
+  elevation_angle_deg: number
+  azimuth_angle_deg: number
+  active_terminals_count: number
+  uplink_health: string
+  downlink_broadcast_enabled: boolean
+  latency_baseline_ms: number
+  isro_dat_sg_compatible: boolean
+  last_sync: string
+}
+
+export interface SatelliteDownlinkMessage {
+  id: string
+  terminal_id: string
+  message_type: string
+  title: string
+  content: string
+  timestamp: string
+  status: string
+  sat_carrier: string
+}
+
 

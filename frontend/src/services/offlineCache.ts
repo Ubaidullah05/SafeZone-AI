@@ -165,7 +165,7 @@ export function getCachedRelocationPriority<T>(): Promise<T | undefined> {
 // ---- Session ----
 export async function cacheSession(token: string, user: AuthSession['user']) {
   const db = await getDB()
-  await db.put('session', { token, user, cachedAt: Date.now() })
+  await db.put('session', { token, user, cachedAt: Date.now() }, 'auth')
 }
 
 export async function getCachedSession(): Promise<AuthSession | undefined> {

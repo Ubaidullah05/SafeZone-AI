@@ -11,6 +11,7 @@ import SOSPanel from './SOSPanel'
 import GroundRealityPanel from './GroundRealityPanel'
 import OperationalPriorityTable from './OperationalPriorityTable'
 import AccountsPanel from './AccountsPanel'
+import SatelliteGatewayPanel from './SatelliteGatewayPanel'
 import { riskColor, fmtNumber } from '../utils'
 import * as api from '../services/api'
 import { useAuth } from '../auth/AuthContext'
@@ -118,6 +119,7 @@ export default function Dashboard({
             <div key={tabKey} className="animate-tab-change">
               {activeTab === 'risk' && <RiskMapTab villages={filteredVillages} safeZones={safeZones} selectedVillageId={selectedVillageId} onSelectVillage={onSelectVillage} selectedVillage={selectedVillage} onFindSafeZone={onFindSafeZone} isLoadingRecommendation={isLoadingRecommendation} recommendation={recommendation} search={search} onSearch={setSearch} />}
               {activeTab === 'sos' && <SOSPanel />}
+              {activeTab === 'satellite' && <SatelliteGatewayPanel />}
               {activeTab === 'ground' && <GroundRealityPanel />}
               {activeTab === 'accounts' && user?.role === 'ADMIN' && <AccountsPanel />}
               {activeTab === 'scenario' && <ScenarioSimulator onRunScenario={onRunScenario} comparison={scenarioComparison} isRunning={isRunningScenario} />}

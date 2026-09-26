@@ -99,6 +99,7 @@ The UI is fully responsive and works on mobile devices:
 - **Scenario simulator** — drag hazard / rainfall / population / road sliders and re-run the whole pipeline live.
 - **Ground Reality** — blends predicted risk with live citizen SOS reports.
 - **SOS workflow** — NEW -> ACKNOWLEDGED -> IN_PROGRESS -> RESOLVED, with priority scoring and official adjudication.
+- **Satellite Backhaul Simulation (ISRO DAT-SG / NavIC)** — Hybrid off-grid emergency communication: phone pairs via Bluetooth BLE to a Satcom Terminal (ISRO DAT-SG Gen-2 compatible), which transmits compressed burst packets (`SZ1|...`) over simulated geostationary satellite backhaul (GSAT-7R MSS S-Band) to INMCC ground station when terrestrial mobile towers are destroyed. Includes two-way downlink emergency broadcast.
 - **Operational priority** — day-of-response ordering once ground truth is factored in.
 - **Learning engine** — observational feedback tunes engine weight shares.
 - **Validation / backtest** — red-zone plausibility checks and a Kedarnath-2013-style backtest.

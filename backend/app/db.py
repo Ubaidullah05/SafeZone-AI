@@ -14,15 +14,111 @@ Falls back to SAFEZONE_DEMO_MODE JSON when the DB is unreachable.
 """
 
 import json
+import logging
 import os
+import re
+import sqlite3
 import time
 from pathlib import Path
-from typing import Optional
 
-import psycopg2
-from psycopg2.extras import DictCursor
+logger = logging.getLogger(__name__)
+
+try:
+    import psycopg2
+    from psycopg2.extras import DictCursor
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
 
 DATA_DIR = Path(__file__).parent / "data"
+
+
+# ---------------------------------------------------------------------------
+# SQLite Compatibility Wrappers
+# ---------------------------------------------------------------------------
+
+class SQLiteCursorWrapper:
+    """Wraps sqlite3.Cursor to provide psycopg2-compatible parameter and method semantics."""
+
+    def __init__(self, cur: sqlite3.Cursor):
+        self._cur = cur
+        self.description = None
+
+    def execute(self, sql: str, params=None):
+        if sql.strip().upper() == "BEGIN":
+            return self
+        sql_sqlite = sql.replace("%s", "?")
+        if params is None:
+            self._cur.execute(sql_sqlite)
+        else:
+            self._cur.execute(sql_sqlite, params)
+        self.description = self._cur.description
+        return self
+
+    def executemany(self, sql: str, seq_of_parameters):
+        sql_sqlite = sql.replace("%s", "?")
+        self._cur.executemany(sql_sqlite, seq_of_parameters)
+        self.description = self._cur.description
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def fetchmany(self, size=None):
+        return self._cur.fetchmany(size)
+
+    def close(self):
+        self._cur.close()
+
+    @property
+    def rowcount(self) -> int:
+        return self._cur.rowcount
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    def __iter__(self):
+        return iter(self._cur)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+class SQLiteConnectionWrapper:
+    """Wraps sqlite3.Connection with dictionary-like row access and transaction management."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._conn.row_factory = sqlite3.Row
+        self.autocommit = False
+
+    def cursor(self):
+        return SQLiteCursorWrapper(self._conn.cursor())
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.rollback()
+        else:
+            self.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -42,15 +138,44 @@ def _conn_str() -> str:
     return f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
 
+def _get_sqlite_path() -> Path:
+    env_path = os.environ.get("SAFEZONE_DB_PATH", "").strip()
+    if env_path:
+        return Path(env_path)
+    return DATA_DIR / "safelink.db"
+
+
+def _connect_sqlite(db_path: Path):
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = sqlite3.connect(str(db_path), check_same_thread=False)
+    return SQLiteConnectionWrapper(raw)
+
+
 def _connect():
-    """Open a raw PostgreSQL connection."""
-    conn = psycopg2.connect(_conn_str(), cursor_factory=DictCursor)
-    conn.autocommit = False
-    return conn
+    """Open a database connection: PostgreSQL if available/configured, SQLite otherwise."""
+    # Explicit SQLite via path or env
+    if os.environ.get("SAFEZONE_DB_PATH") or os.environ.get("SAFEZONE_USE_SQLITE") == "1":
+        return _connect_sqlite(_get_sqlite_path())
+
+    if HAS_PSYCOPG2:
+        try:
+            conn = psycopg2.connect(_conn_str(), cursor_factory=DictCursor)
+            conn.autocommit = False
+            return conn
+        except (psycopg2.OperationalError, psycopg2.DatabaseError) as err:
+            logger.warning("PostgreSQL connection failed (%s); falling back to local SQLite", err)
+
+    return _connect_sqlite(_get_sqlite_path())
+
+
+def _sqlite_schema(schema_sql: str) -> str:
+    return re.sub(r"\bSERIAL\s+PRIMARY\s+KEY\b", "INTEGER PRIMARY KEY AUTOINCREMENT", schema_sql, flags=re.IGNORECASE)
 
 
 def _executescript(conn, schema_sql: str) -> None:
     """Execute a multi-statement SQL string."""
+    if isinstance(conn, SQLiteConnectionWrapper):
+        schema_sql = _sqlite_schema(schema_sql)
     cur = conn.cursor()
     statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
     for stmt in statements:
@@ -99,6 +224,12 @@ CREATE TABLE IF NOT EXISTS sos_reports (
     priority_score    REAL NOT NULL DEFAULT 0,
     relay_hops        INTEGER NOT NULL DEFAULT 0,
     reached_gateway   INTEGER NOT NULL DEFAULT 0,
+    transmission_channel TEXT NOT NULL DEFAULT 'TERRESTRIAL',
+    sat_terminal_id   TEXT NOT NULL DEFAULT '',
+    sat_constellation TEXT NOT NULL DEFAULT '',
+    sat_latency_ms    REAL NOT NULL DEFAULT 0,
+    sat_signal_dbhz   REAL NOT NULL DEFAULT 0,
+    raw_sat_packet    TEXT NOT NULL DEFAULT '',
     adjudicated_by    TEXT,
     adjudicated_at    TEXT
 );
@@ -203,6 +334,33 @@ CREATE TABLE IF NOT EXISTS mesh_packets (
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_status ON mesh_packets(status);
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_dest ON mesh_packets(destination_node_id);
 CREATE INDEX IF NOT EXISTS idx_mesh_packet_priority ON mesh_packets(priority, timestamp);
+
+CREATE TABLE IF NOT EXISTS satcom_terminals (
+    terminal_id      TEXT PRIMARY KEY,
+    name             TEXT NOT NULL,
+    model            TEXT NOT NULL,
+    latitude         REAL NOT NULL,
+    longitude        REAL NOT NULL,
+    altitude_m       REAL NOT NULL DEFAULT 0,
+    battery_pct      INTEGER NOT NULL DEFAULT 100,
+    ble_paired       INTEGER NOT NULL DEFAULT 0,
+    ble_signal_dbm   INTEGER NOT NULL DEFAULT -60,
+    uplink_c_n0_dbhz REAL NOT NULL DEFAULT 44.0,
+    status           TEXT NOT NULL DEFAULT 'ONLINE',
+    sat_lock         INTEGER NOT NULL DEFAULT 1,
+    last_ping        TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS satcom_downlink_messages (
+    id           TEXT PRIMARY KEY,
+    terminal_id  TEXT NOT NULL,
+    message_type TEXT NOT NULL DEFAULT 'ADVISORY',
+    title        TEXT NOT NULL,
+    content      TEXT NOT NULL,
+    timestamp    TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'BEAMED_VIA_SATELLITE',
+    sat_carrier  TEXT NOT NULL DEFAULT 'GSAT-7R MSS Forward Link'
+);
 """
 
 

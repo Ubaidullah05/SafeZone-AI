@@ -112,6 +112,12 @@ Vite proxies `/api` and `/ws` to `http://127.0.0.1:8000` automatically.
 | GET | `/api/sos/reports` | JWT | Authority: view all SOS reports |
 | PATCH | `/api/sos/reports/{id}` | JWT (OFFICIAL+) | Update SOS status |
 | POST | `/api/sos/adjudicate` | JWT (OFFICIAL+) | Close out SOS with outcome |
+| POST | `/api/satellite/transmit` | None | Simulated phone -> BLE -> Satcom terminal -> Satellite uplink |
+| GET | `/api/satellite/status` | None | Satellite constellation & link health metrics |
+| GET | `/api/satellite/terminals` | None | List deployed virtual Satcom Terminals |
+| POST | `/api/satellite/terminal/pair` | None | Simulate BLE handshake with terminal |
+| POST | `/api/satellite/downlink/broadcast` | JWT (OFFICIAL+) | Authority satellite advisory broadcast |
+| GET | `/api/satellite/downlink/messages` | None | Fetch satellite downlink messages |
 | POST | `/api/auth/login` | None | Email + password login |
 | POST | `/api/auth/pin-login` | None | Fast-access PIN login |
 | POST | `/api/auth/register` | JWT (ADMIN) | Create authority account |

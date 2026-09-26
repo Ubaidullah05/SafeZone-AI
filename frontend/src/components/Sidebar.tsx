@@ -1,4 +1,4 @@
-import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, Menu, X, type LucideIcon } from 'lucide-react'
+import { Shield, Map, Radio, Brain, Zap, Users, Home, UserPlus, ChevronLeft, ChevronRight, X, Satellite, type LucideIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface NavItem {
@@ -12,6 +12,7 @@ interface NavItem {
 const BASE_NAV: NavItem[] = [
   { id: 'risk', icon: Map, label: 'Danger Map', color: 'var(--surface-400)' },
   { id: 'sos', icon: Radio, label: 'Emergency Calls', color: '#F43F5E', badge: true },
+  { id: 'satellite', icon: Satellite, label: 'Satcom Backhaul', color: '#22D3EE' },
   { id: 'ground', icon: Brain, label: 'What People Report', color: '#C084FC' },
   { id: 'scenario', icon: Zap, label: 'What If', color: 'var(--golden)' },
   { id: 'relocation', icon: Users, label: 'Who Should Move', color: '#FB923C' },

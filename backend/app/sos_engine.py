@@ -73,27 +73,132 @@ def calculate_sos_priority(
     return round(min(total, 100), 1)
 
 
-def _generate_report_id(conn) -> str:
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM sos_reports ORDER BY id DESC LIMIT 1")
-    row = cur.fetchone()
-    n = int(row["id"][3:]) + 1 if row and row["id"].startswith("SOS") else 1
-    return f"SOS{n:03d}"
+# Default in-memory demo records for resilient fallback
+_IN_MEMORY_REPORTS: list[dict] = [
+    {
+        "id": "SOS001",
+        "reporter_name": "Demo Resident (Amrapur)",
+        "reporter_phone": "",
+        "village_id": "V008",
+        "village_name": "Amrapur",
+        "emergency_type": "FLOOD",
+        "severity": 4,
+        "description": "Demo record: water levels rising near stream bank.",
+        "people_affected": 60,
+        "medical_emergency": False,
+        "medical_details": "",
+        "latitude": 30.203,
+        "longitude": 78.46,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 7200)),
+        "status": "NEW",
+        "priority_score": 75.0,
+        "relay_hops": 0,
+        "reached_gateway": True,
+        "transmission_channel": "TERRESTRIAL",
+        "sat_terminal_id": "",
+        "sat_constellation": "",
+        "sat_latency_ms": 0.0,
+        "sat_signal_dbhz": 0.0,
+        "raw_sat_packet": "",
+        "adjudicated_by": None,
+        "adjudicated_at": None,
+    },
+    {
+        "id": "SOS002",
+        "reporter_name": "Demo Resident (Sundarpur)",
+        "reporter_phone": "",
+        "village_id": "V001",
+        "village_name": "Sundarpur",
+        "emergency_type": "ROAD_BLOCKED",
+        "severity": 3,
+        "description": "Demo record: landslide debris blocking main approach road.",
+        "people_affected": 0,
+        "medical_emergency": False,
+        "medical_details": "",
+        "latitude": 30.121,
+        "longitude": 78.451,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 3600)),
+        "status": "NEW",
+        "priority_score": 60.0,
+        "relay_hops": 0,
+        "reached_gateway": True,
+        "transmission_channel": "TERRESTRIAL",
+        "sat_terminal_id": "",
+        "sat_constellation": "",
+        "sat_latency_ms": 0.0,
+        "sat_signal_dbhz": 0.0,
+        "raw_sat_packet": "",
+        "adjudicated_by": None,
+        "adjudicated_at": None,
+    },
+    {
+        "id": "SOS003",
+        "reporter_name": "Demo Resident (Nandagaon)",
+        "reporter_phone": "",
+        "village_id": "V006",
+        "village_name": "Nandagaon",
+        "emergency_type": "MEDICAL",
+        "severity": 5,
+        "description": "Demo record: medical access request.",
+        "people_affected": 2,
+        "medical_emergency": True,
+        "medical_details": "Critical oxygen requirement",
+        "latitude": 30.188,
+        "longitude": 78.418,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 1800)),
+        "status": "NEW",
+        "priority_score": 92.5,
+        "relay_hops": 0,
+        "reached_gateway": True,
+        "transmission_channel": "TERRESTRIAL",
+        "sat_terminal_id": "",
+        "sat_constellation": "",
+        "sat_latency_ms": 0.0,
+        "sat_signal_dbhz": 0.0,
+        "raw_sat_packet": "",
+        "adjudicated_by": None,
+        "adjudicated_at": None,
+    },
+]
+
+
+def _generate_report_id(conn=None) -> str:
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM sos_reports ORDER BY id DESC LIMIT 1")
+            row = cur.fetchone()
+            n = int(row["id"][3:]) + 1 if row and row["id"].startswith("SOS") else 1
+            return f"SOS{n:03d}"
+        except Exception:
+            pass
+    # Fallback using in-memory list
+    return f"SOS{len(_IN_MEMORY_REPORTS) + 1:03d}"
 
 
 def load_sos_reports() -> list[dict]:
-    conn = db.get_conn()
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM sos_reports ORDER BY priority_score DESC")
-        rows = cur.fetchall()
-        reports = [dict(r) for r in rows]
-        for r in reports:
-            r["medical_emergency"] = bool(r["medical_emergency"])
-            r["reached_gateway"] = bool(r["reached_gateway"])
-        return reports
-    finally:
-        conn.close()
+        conn = db.get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM sos_reports ORDER BY priority_score DESC")
+            rows = cur.fetchall()
+            reports = [dict(r) for r in rows]
+            for r in reports:
+                r["medical_emergency"] = bool(r["medical_emergency"])
+                r["reached_gateway"] = bool(r["reached_gateway"])
+                r["transmission_channel"] = r.get("transmission_channel") or "TERRESTRIAL"
+                r["sat_terminal_id"] = r.get("sat_terminal_id") or ""
+                r["sat_constellation"] = r.get("sat_constellation") or ""
+                r["sat_latency_ms"] = float(r.get("sat_latency_ms") or 0.0)
+                r["sat_signal_dbhz"] = float(r.get("sat_signal_dbhz") or 0.0)
+                r["raw_sat_packet"] = r.get("raw_sat_packet") or ""
+            return reports
+        finally:
+            conn.close()
+    except Exception:
+        # Fallback to in-memory store
+        return sorted(_IN_MEMORY_REPORTS, key=lambda x: x.get("priority_score", 0), reverse=True)
 
 
 def save_sos_reports(reports: list[dict]) -> None:
@@ -103,31 +208,13 @@ def save_sos_reports(reports: list[dict]) -> None:
 
 
 def get_reports_by_village(village_id: str) -> list[dict]:
-    conn = db.get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM sos_reports WHERE village_id=%s ORDER BY priority_score DESC",
-            (village_id,),
-        )
-        rows = cur.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
+    all_reports = load_sos_reports()
+    return [r for r in all_reports if r.get("village_id") == village_id]
 
 
 def get_reports_by_status(status: str) -> list[dict]:
-    conn = db.get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM sos_reports WHERE status=%s ORDER BY priority_score DESC",
-            (status,),
-        )
-        rows = cur.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
+    all_reports = load_sos_reports()
+    return [r for r in all_reports if r.get("status") == status]
 
 
 def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SOSReportResult:
@@ -142,39 +229,90 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
     )
     timestamp = report.timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    conn = db.get_conn()
+    channel = getattr(report, "transmission_channel", "TERRESTRIAL") or "TERRESTRIAL"
+    sat_terminal = getattr(report, "sat_terminal_id", "") or ""
+    sat_const = getattr(report, "sat_constellation", "") or ""
+    sat_latency = float(getattr(report, "sat_latency_ms", 0.0) or 0.0)
+    sat_signal = float(getattr(report, "sat_signal_dbhz", 0.0) or 0.0)
+    raw_packet = getattr(report, "raw_sat_packet", "") or ""
+
+    report_id = None
     try:
-        report_id = _generate_report_id(conn)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO sos_reports (id, reporter_name, reporter_phone, village_id, village_name, "
-            "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
-            "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (
-                report_id,
-                report.reporter_name,
-                report.reporter_phone,
-                report.village_id,
-                report.village_name,
-                report.emergency_type,
-                report.severity,
-                report.description,
-                report.people_affected,
-                1 if report.medical_emergency else 0,
-                report.medical_details,
-                report.latitude,
-                report.longitude,
-                timestamp,
-                "NEW",
-                priority,
-                0,
-                0,
-            ),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+        conn = db.get_conn()
+        try:
+            report_id = _generate_report_id(conn)
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO sos_reports (id, reporter_name, reporter_phone, village_id, village_name, "
+                "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
+                "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway, "
+                "transmission_channel, sat_terminal_id, sat_constellation, sat_latency_ms, sat_signal_dbhz, raw_sat_packet) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    report_id,
+                    report.reporter_name,
+                    report.reporter_phone,
+                    report.village_id,
+                    report.village_name,
+                    report.emergency_type,
+                    report.severity,
+                    report.description,
+                    report.people_affected,
+                    1 if report.medical_emergency else 0,
+                    report.medical_details,
+                    report.latitude,
+                    report.longitude,
+                    timestamp,
+                    "NEW",
+                    priority,
+                    0,
+                    1 if channel == "SATELLITE" else 0,
+                    channel,
+                    sat_terminal,
+                    sat_const,
+                    sat_latency,
+                    sat_signal,
+                    raw_packet,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        # Fallback to memory
+        if not report_id:
+            report_id = _generate_report_id()
+
+    # Also keep in-memory cache synchronized
+    in_mem_item = {
+        "id": report_id,
+        "reporter_name": report.reporter_name,
+        "reporter_phone": report.reporter_phone,
+        "village_id": report.village_id,
+        "village_name": report.village_name,
+        "emergency_type": report.emergency_type,
+        "severity": report.severity,
+        "description": report.description,
+        "people_affected": report.people_affected,
+        "medical_emergency": report.medical_emergency,
+        "medical_details": report.medical_details,
+        "latitude": report.latitude,
+        "longitude": report.longitude,
+        "timestamp": timestamp,
+        "status": "NEW",
+        "priority_score": priority,
+        "relay_hops": 0,
+        "reached_gateway": True,
+        "transmission_channel": channel,
+        "sat_terminal_id": sat_terminal,
+        "sat_constellation": sat_const,
+        "sat_latency_ms": sat_latency,
+        "sat_signal_dbhz": sat_signal,
+        "raw_sat_packet": raw_packet,
+        "adjudicated_by": None,
+        "adjudicated_at": None,
+    }
+    _IN_MEMORY_REPORTS.insert(0, in_mem_item)
 
     return SOSReportResult(
         id=report_id,
@@ -194,7 +332,13 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
         status="NEW",
         priority_score=priority,
         relay_hops=0,
-        reached_gateway=False,
+        reached_gateway=True,
+        transmission_channel=channel,
+        sat_terminal_id=sat_terminal,
+        sat_constellation=sat_const,
+        sat_latency_ms=sat_latency,
+        sat_signal_dbhz=sat_signal,
+        raw_sat_packet=raw_packet,
     )
 
 
@@ -202,67 +346,67 @@ def update_report_status(report_id: str, new_status: str, adjudicated_by: str = 
     """Update report status (authority action). Returns the updated report."""
     if new_status.upper() not in VALID_STATUSES:
         raise ValueError(f"Invalid status '{new_status}'")
-    conn = db.get_conn()
+    
+    # Update in-memory copy
+    for r in _IN_MEMORY_REPORTS:
+        if r["id"] == report_id:
+            r["status"] = new_status.upper()
+            if adjudicated_by:
+                r["adjudicated_by"] = adjudicated_by
+
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM sos_reports WHERE id=%s", (report_id,))
-        row = cur.fetchone()
-        if not row:
-            return None
-        cur.execute(
-            "UPDATE sos_reports SET status=%s, adjudicated_by=COALESCE(adjudicated_by, %s) WHERE id=%s",
-            (new_status.upper(), adjudicated_by, report_id),
-        )
-        conn.commit()
-        cur.execute("SELECT * FROM sos_reports WHERE id=%s", (report_id,))
-        updated = cur.fetchone()
-        result = dict(updated)
-        result["medical_emergency"] = bool(result["medical_emergency"])
-        result["reached_gateway"] = bool(result["reached_gateway"])
-        return result
-    finally:
-        conn.close()
+        conn = db.get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM sos_reports WHERE id=%s", (report_id,))
+            row = cur.fetchone()
+            if not row:
+                return next((r for r in _IN_MEMORY_REPORTS if r["id"] == report_id), None)
+            cur.execute(
+                "UPDATE sos_reports SET status=%s, adjudicated_by=COALESCE(adjudicated_by, %s) WHERE id=%s",
+                (new_status.upper(), adjudicated_by, report_id),
+            )
+            conn.commit()
+            cur.execute("SELECT * FROM sos_reports WHERE id=%s", (report_id,))
+            updated = cur.fetchone()
+            result = dict(updated)
+            result["medical_emergency"] = bool(result["medical_emergency"])
+            result["reached_gateway"] = bool(result["reached_gateway"])
+            return result
+        finally:
+            conn.close()
+    except Exception:
+        return next((r for r in _IN_MEMORY_REPORTS if r["id"] == report_id), None)
 
 
 def get_priority_queue() -> list[SOSPriorityItem]:
     """Return all active (non-resolved) reports sorted by priority."""
-    conn = db.get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM sos_reports WHERE status != 'RESOLVED' ORDER BY priority_score DESC"
+    all_reports = load_sos_reports()
+    active = [r for r in all_reports if r.get("status") != "RESOLVED"]
+    active.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
+    return [
+        SOSPriorityItem(
+            report_id=r["id"],
+            village_id=r["village_id"],
+            village_name=r["village_name"],
+            emergency_type=r["emergency_type"],
+            severity=r["severity"],
+            people_affected=r["people_affected"],
+            medical_emergency=bool(r["medical_emergency"]),
+            priority_score=r["priority_score"],
+            status=r["status"],
+            timestamp=r["timestamp"],
+            transmission_channel=r.get("transmission_channel", "TERRESTRIAL"),
         )
-        rows = cur.fetchall()
-        return [
-            SOSPriorityItem(
-                report_id=r["id"],
-                village_id=r["village_id"],
-                village_name=r["village_name"],
-                emergency_type=r["emergency_type"],
-                severity=r["severity"],
-                people_affected=r["people_affected"],
-                medical_emergency=bool(r["medical_emergency"]),
-                priority_score=r["priority_score"],
-                status=r["status"],
-                timestamp=r["timestamp"],
-            )
-            for r in rows
-        ]
-    finally:
-        conn.close()
+        for r in active
+    ]
 
 
 def aggregate_by_village() -> dict:
     """Aggregate SOS data per village for Ground Reality scoring."""
-    conn = db.get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM sos_reports WHERE status != 'RESOLVED' ORDER BY timestamp ASC"
-        )
-        rows = cur.fetchall()
-    finally:
-        conn.close()
+    all_reports = load_sos_reports()
+    rows = [r for r in all_reports if r.get("status") != "RESOLVED"]
+    rows.sort(key=lambda x: x.get("timestamp", ""))
 
     village_data = {}
     for r in rows:

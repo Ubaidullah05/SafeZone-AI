@@ -104,6 +104,11 @@ function Card({ r, sel, onClick, delay }: { r: SOSReport; sel: boolean; onClick:
           <div className="flex items-center gap-1.5 flex-wrap sm:gap-2">
             <p className="text-sm font-semibold text-white sm:text-base">{r.village_name}</p>
             <span className={`rounded-lg border px-1.5 py-0.5 font-mono text-2xs font-bold sm:px-2.5 sm:py-1 sm:text-xs ${s.bg} ${s.text} ${s.border}`}>{s.label}</span>
+            {r.transmission_channel === 'SATELLITE' && (
+              <span className="rounded-lg bg-cyan-500/15 border border-cyan-500/30 px-1.5 py-0.5 font-mono text-2xs font-bold text-cyan-300">
+                🛰️ SATCOM
+              </span>
+            )}
             {r.medical_emergency && <span className="rounded-lg bg-danger/10 px-1.5 py-0.5 font-mono text-2xs font-bold text-danger-light sm:px-2.5 sm:text-xs">🏥</span>}
           </div>
           <p className="mt-1 truncate text-xs text-violet-200/50 sm:mt-1.5 sm:text-sm">{r.description}</p>
@@ -117,6 +122,7 @@ function Card({ r, sel, onClick, delay }: { r: SOSReport; sel: boolean; onClick:
     <div className="mt-2.5 flex items-center gap-3 text-xs text-violet-300/40 sm:mt-3.5 sm:gap-5 sm:text-sm">
       <span className="flex items-center gap-1"><Users size={12} /> {fmtNumber(r.people_affected)}</span>
       <span className="flex items-center gap-1"><Clock size={12} /> {new Date(r.timestamp).toLocaleTimeString()}</span>
+      {r.transmission_channel === 'SATELLITE' && <span className="text-cyan-400/80 font-mono text-2xs">ISRO DAT-SG</span>}
       <span className="hidden font-mono sm:inline">{r.id}</span>
     </div>
   </button>
@@ -155,10 +161,40 @@ function Detail({ r, onUpdate, onClose }: { r: SOSReport; onUpdate: (id: string,
       <button onClick={onClose} className="rounded-lg p-2 text-violet-400/30 transition hover:bg-white/5 hover:text-white">✕</button>
     </div>
     <div className="mt-5 space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <span className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-bold ${s.bg} ${s.text} ${s.border}`}>Severity {r.severity}/5</span>
         <span className={`rounded-lg px-3 py-1.5 font-mono text-xs font-bold ${st}`}>{r.status.replace('_', ' ')}</span>
+        {r.transmission_channel === 'SATELLITE' && (
+          <span className="rounded-lg border border-cyan-500/30 bg-cyan-500/15 px-3 py-1.5 font-mono text-xs font-bold text-cyan-300">
+            🛰️ Satellite Backhaul — Simulated
+          </span>
+        )}
       </div>
+
+      {r.transmission_channel === 'SATELLITE' && (
+        <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-bold">
+              ISRO DAT-SG Satcom Telemetry
+            </p>
+            <span className="rounded-md bg-cyan-500/20 px-2 py-0.5 font-mono text-2xs text-cyan-300">
+              Verified Ground Gateway Link
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs font-mono text-slate-300">
+            <div><span className="text-muted">Terminal: </span>{r.sat_terminal_id || 'DATSG-KDR01'}</div>
+            <div><span className="text-muted">Uplink Latency: </span>{r.sat_latency_ms ? `${r.sat_latency_ms}ms` : '1080ms'}</div>
+            <div><span className="text-muted">Constellation: </span>{r.sat_constellation || 'GSAT-7R / NavIC'}</div>
+            <div><span className="text-muted">Signal C/N0: </span>{r.sat_signal_dbhz ? `${r.sat_signal_dbhz} dB-Hz` : '44.5 dB-Hz'}</div>
+          </div>
+          {r.raw_sat_packet && (
+            <div className="mt-2 rounded-lg bg-black/50 p-2 font-mono text-2xs text-emerald-400 overflow-x-auto">
+              SZ1 Burst: {r.raw_sat_packet}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="rounded-xl border border-theme bg-bg-light p-4"><p className="text-sm text-violet-100/80 leading-relaxed">{r.description}</p></div>
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl border border-theme bg-bg-light p-3.5"><p className="font-mono text-xs uppercase text-violet-300/30">Reporter</p><p className="mt-1 font-medium text-white">{r.reporter_name}</p>{r.reporter_phone && <p className="flex items-center gap-1 text-violet-200/50"><Phone size={11} /> {r.reporter_phone}</p>}</div>

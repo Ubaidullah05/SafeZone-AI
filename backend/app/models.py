@@ -95,6 +95,12 @@ class SOSReportInput(BaseModel):
     latitude: float
     longitude: float
     timestamp: str = ""
+    transmission_channel: str = "TERRESTRIAL"  # TERRESTRIAL | SATELLITE | BLE_MESH
+    sat_terminal_id: str = ""
+    sat_constellation: str = ""
+    sat_latency_ms: float = 0.0
+    sat_signal_dbhz: float = 0.0
+    raw_sat_packet: str = ""
 
 
 class SOSReportResult(BaseModel):
@@ -117,6 +123,12 @@ class SOSReportResult(BaseModel):
     priority_score: float = 0
     relay_hops: int = 0
     reached_gateway: bool = False
+    transmission_channel: str = "TERRESTRIAL"
+    sat_terminal_id: str = ""
+    sat_constellation: str = ""
+    sat_latency_ms: float = 0.0
+    sat_signal_dbhz: float = 0.0
+    raw_sat_packet: str = ""
 
 
 class SOSPriorityItem(BaseModel):
@@ -131,6 +143,7 @@ class SOSPriorityItem(BaseModel):
     priority_score: float
     status: str
     timestamp: str
+    transmission_channel: str = "TERRESTRIAL"
 
 
 # ---------------------------------------------------------------------------
@@ -379,3 +392,81 @@ class MeshSyncResponse(BaseModel):
     packets: list[MeshPacket] = []
     relay_instructions: list[dict] = []
     next_hop: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Satellite Backhaul & Virtual Satcom Terminal models
+# ---------------------------------------------------------------------------
+
+class SatelliteBurstPacket(BaseModel):
+    """A compressed burst telemetry packet for transmission over MSS satellite links."""
+    packet_str: str
+    terminal_id: str = "DATSG-KDR01"
+    device_name: str = "Civilian Mobile Phone"
+
+
+class SatelliteTransmitRequest(BaseModel):
+    """Transmission payload for satellite emergency uplink."""
+    village_id: str
+    latitude: float
+    longitude: float
+    severity: int = Field(default=5, ge=1, le=5)
+    people_affected: int = 1
+    medical_emergency: bool = False
+    emergency_type: str = "OTHER"
+    description: str = "Emergency distress signal uplinked via Satcom Terminal."
+    reporter_name: str = "Civilian (Satellite SOS)"
+    reporter_phone: str = ""
+    terminal_id: str = "DATSG-KDR01"
+    raw_packet: Optional[str] = None
+
+
+class SatelliteTransmitResult(BaseModel):
+    """Result of satellite transmission simulation and backend ingestion."""
+    uplink_status: str
+    satellite_constellation: str
+    ground_gateway: str
+    satellite_id: str
+    terminal_id: str
+    raw_packet: str
+    telemetry: dict
+    sos_report: SOSReportResult
+    ack_code: str
+    timestamp: str
+
+
+class SatcomTerminalModel(BaseModel):
+    """Virtual Satcom Terminal (ISRO DAT-SG / NavIC compatible)."""
+    terminal_id: str
+    name: str
+    model: str
+    latitude: float
+    longitude: float
+    altitude_m: float
+    battery_pct: int
+    ble_paired: bool
+    ble_signal_dbm: int
+    uplink_c_n0_dbhz: float
+    status: str
+    sat_lock: bool
+    last_ping: str
+
+
+class SatelliteDownlinkBroadcast(BaseModel):
+    """Authority advisory broadcast down to satellite terminals."""
+    title: str
+    content: str
+    message_type: str = "ADVISORY"
+    target_terminal: str = "ALL"
+
+
+class SatelliteDownlinkMessage(BaseModel):
+    """Paging message received at terminal via satellite downlink."""
+    id: str
+    terminal_id: str
+    message_type: str
+    title: str
+    content: str
+    timestamp: str
+    status: str
+    sat_carrier: str = "GSAT-7R MSS Forward Link"

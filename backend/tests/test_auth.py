@@ -1,6 +1,6 @@
 """Auth & RBAC: demo accounts, JWT, PIN login, rate limiting, admin-only ops."""
 
-from .conftest import DEMO_ADMIN, DEMO_OFFICIAL, DEMO_VOLUNTEER, ADMIN_PIN, OFFICIAL_PIN
+from .conftest import DEMO_ADMIN, DEMO_OFFICIAL, DEMO_VOLUNTEER, OFFICIAL_PIN
 
 
 def test_login_admin_returns_token(client):
