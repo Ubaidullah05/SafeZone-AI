@@ -1,6 +1,6 @@
 {
-  "name": "SafeLink-AI",
-  "short_name": "SafeLink",
+  "name": "SafeZone-AI",
+  "short_name": "SafeZone",
   "description": "Disaster evacuation and authority command center with offline capability",
   "id": "/",
   "start_url": "/",

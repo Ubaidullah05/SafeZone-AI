@@ -6,10 +6,10 @@ Populates the SQLite database with real Kedarnath region data.
 
 Usage:
     cd backend
-    SAFEZONE_DB_PATH=app/data/safelink.db python -m scripts.ingest_data
+    SAFEZONE_DB_PATH=app/data/safezone.db python -m scripts.ingest_data
 
 Or with environment variables:
-    SAFEZONE_DB_PATH=/path/to/safelink.db python -m scripts.ingest_data
+    SAFEZONE_DB_PATH=/path/to/safezone.db python -m scripts.ingest_data
 
 The script is idempotent — re-running it replaces existing records.
 """

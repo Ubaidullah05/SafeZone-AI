@@ -14,7 +14,12 @@ const ThemeContext = createContext<ThemeValue | null>(null)
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
-      return (window.localStorage.getItem('safelink_theme') as ThemeMode) || 'night'
+      // Fall back to the pre-rename key so an existing user's saved theme
+      // survives the rename instead of silently reverting to night.
+      const stored =
+        window.localStorage.getItem('safezone_theme') ??
+        window.localStorage.getItem('safelink_theme')
+      return (stored as ThemeMode) || 'night'
     } catch {
       return 'night'
     }
@@ -28,7 +33,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.add('dark')
     }
     try {
-      window.localStorage.setItem('safelink_theme', theme)
+      window.localStorage.setItem('safezone_theme', theme)
     } catch {
       // storage unavailable (private mode)
     }

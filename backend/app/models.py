@@ -1,5 +1,5 @@
 """
-Pydantic data models shared across the SafeLink - AI backend.
+Pydantic data models shared across the SafeZone-AI backend.
 
 These models define the shape of raw input data (villages / safe zones),
 auth/authority flows, SOS reports, adjudications, and the advisory output of

@@ -5,6 +5,10 @@ __pycache__/
 
 # Generated runtime artifacts
 app/data/.jwt_secret
+app/data/safezone.db
+app/data/safezone.db-*
+# Pre-rename database file, still honoured by db.py. Keep ignoring it so an
+# upgraded local database is never committed by accident.
 app/data/safelink.db
 app/data/safelink.db-*
 

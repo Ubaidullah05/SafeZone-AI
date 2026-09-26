@@ -67,7 +67,7 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role, mobile
             <Shield size={18} className="text-white" strokeWidth={2.5} />
           </div>
           <div className="animate-fade-in">
-            <span className="font-display text-lg font-bold text-primary">SafeLink</span>
+            <span className="font-display text-lg font-bold text-primary">SafeZone</span>
             <span className="block font-mono text-2xs uppercase tracking-[0.2em] text-muted">AI Platform</span>
           </div>
         </div>

@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-golden shadow-glow-v">
             <Shield size={15} className="text-white" />
           </div>
-          <span className="font-display text-sm font-bold">SafeLink<span className="text-golden">-AI</span></span>
+          <span className="font-display text-sm font-bold">SafeZone<span className="text-golden">-AI</span></span>
         </div>
       </header>
 

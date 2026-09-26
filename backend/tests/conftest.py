@@ -1,5 +1,5 @@
 """
-Shared pytest fixtures for the SafeLink-AI backend.
+Shared pytest fixtures for the SafeZone-AI backend.
 
 Every test runs against an isolated temporary SQLite database so the test
 suite never touches real data and is fully parallel-safe w.r.t. state.
@@ -17,7 +17,7 @@ import pytest
 
 _TMP = Path(
     tempfile.mkdtemp(
-        prefix="safelink-tests-",
+        prefix="safezone-tests-",
         dir=str(Path(os.environ.get("TEMP", "/tmp"))),
     )
 )

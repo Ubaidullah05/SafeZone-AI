@@ -1,8 +1,8 @@
-# SafeLink-AI — System Prompt
+# SafeZone-AI — System Prompt
 
 ## Project Overview
 
-SafeLink-AI is a **decision-support prototype** for disaster management (SIH26191). It identifies hazard-based red zones, assesses carrying capacity, and determines immediate relocation needs for vulnerable habitations in the Kedarnath region. This is a prototype — all data is fictional/sample unless explicitly documented. No live government or satellite feeds are integrated.
+SafeZone-AI is a **decision-support prototype** for disaster management (SIH26191). It identifies hazard-based red zones, assesses carrying capacity, and determines immediate relocation needs for vulnerable habitations in the Kedarnath region. This is a prototype — all data is fictional/sample unless explicitly documented. No live government or satellite feeds are integrated.
 
 **Access model (RBAC):**
 - **PUBLIC (no account):** Villages, risk summary, scenario what-ifs, SOS submission, advisories, health

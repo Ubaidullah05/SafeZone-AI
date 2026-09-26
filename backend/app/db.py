@@ -142,7 +142,14 @@ def _get_sqlite_path() -> Path:
     env_path = os.environ.get("SAFEZONE_DB_PATH", "").strip()
     if env_path:
         return Path(env_path)
-    return DATA_DIR / "safelink.db"
+    # Default local file is safezone.db. A pre-rename safelink.db is still
+    # honoured while it is the only one present, so upgrading never orphans
+    # local data. Once safezone.db exists it wins.
+    legacy = DATA_DIR / "safelink.db"
+    current = DATA_DIR / "safezone.db"
+    if legacy.exists() and not current.exists():
+        return legacy
+    return current
 
 
 def _connect_sqlite(db_path: Path):

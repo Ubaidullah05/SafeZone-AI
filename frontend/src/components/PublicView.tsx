@@ -74,7 +74,7 @@ export default function PublicView() {
               <Shield size={16} className="text-white sm:w-[17px]" />
             </div>
             <div>
-              <span className="font-display text-sm font-bold">SafeLink<span className="text-golden">-AI</span></span>
+              <span className="font-display text-sm font-bold">SafeZone<span className="text-golden">-AI</span></span>
               <span className="ml-2 hidden font-mono text-2xs uppercase tracking-widest text-muted sm:inline">Public Safety Page</span>
             </div>
           </div>
@@ -255,7 +255,7 @@ export default function PublicView() {
 
       <footer className="border-t border-theme py-6 text-center">
         <p className="font-mono text-2xs text-muted">
-          SafeLink-AI · SIH 26191 · Safety help — recommendations are reviewed by the district authority before action.
+          SafeZone-AI · SIH 26191 · Safety help — recommendations are reviewed by the district authority before action.
         </p>
       </footer>
 

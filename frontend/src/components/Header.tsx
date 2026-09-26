@@ -47,7 +47,7 @@ export default function Header({ isDemoMode, sosActiveCount, onOpenMobileSidebar
           <span className="text-base">🛡️</span>
         </div>
         <div className="hidden sm:block">
-          <h1 className="font-display text-base font-bold text-primary">SafeLink<span className="text-golden">-AI</span></h1>
+          <h1 className="font-display text-base font-bold text-primary">SafeZone<span className="text-golden">-AI</span></h1>
           <p className="font-mono text-2xs text-muted">District safety board</p>
         </div>
       </div>

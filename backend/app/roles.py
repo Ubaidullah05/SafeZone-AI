@@ -2,7 +2,7 @@
 Roles (RBAC)
 ============
 
-Server-assigned roles for the SafeLink-AI platform.
+Server-assigned roles for the SafeZone-AI platform.
 
 Civilians do not hold accounts: the public/civilian stream (map, SOS,
 guidance) requires no login. Authorized personnel have an account and one of

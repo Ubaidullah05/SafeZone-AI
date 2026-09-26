@@ -95,7 +95,7 @@ export default function AppDashboard() {
       <div className="flex h-dvh items-center justify-center bg-base-950 text-slate-500">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-          <p className="font-mono text-sm">Loading SafeLink - AI…</p>
+          <p className="font-mono text-sm">Loading SafeZone-AI…</p>
         </div>
       </div>
     )

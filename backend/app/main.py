@@ -1,5 +1,5 @@
 """
-SafeLink - AI backend - FastAPI application entrypoint.
+SafeZone-AI backend - FastAPI application entrypoint.
 
 SIH26191: Intelligent Identification of Hazard-Based Red Zones, Carrying
 Capacity Assessment, and Immediate Relocation Needs for Vulnerable Habitations.
@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SafeLink - AI API",
+    title="SafeZone-AI API",
     description=(
         "Decision-support prototype for SIH26191. "
         "Machine proposes, the authority decides - outputs are advisories."
@@ -198,7 +198,7 @@ def health():
     is_demo = os.environ.get("SAFEZONE_DEMO_MODE", "0") == "1"
     return {
         "status": "ok",
-        "service": "SafeLink - AI backend",
+        "service": "SafeZone-AI backend",
         "mode": "demo-data" if is_demo else "real-data",
         "pipeline": "risk -> vulnerability -> relocation -> capacity -> destination",
     }

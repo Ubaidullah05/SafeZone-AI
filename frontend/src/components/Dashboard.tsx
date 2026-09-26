@@ -131,7 +131,7 @@ export default function Dashboard({
           </div>
           <div className="hidden border-t border-theme px-6 py-3 text-center sm:block">
             <div className="flex items-center justify-center gap-5">
-              <p className="font-mono text-xs text-muted">SafeLink-AI — Safety help. Evacuation decided by officials.</p>
+              <p className="font-mono text-xs text-muted">SafeZone-AI — Safety help. Evacuation decided by officials.</p>
               <div className="flex items-center gap-2">
                 {wsConnected ? <><div className="h-2 w-2 rounded-full bg-safe animate-pulse" /><span className="font-mono text-xs text-safe font-medium">LIVE</span></> : <><div className="h-2 w-2 rounded-full bg-gold-400" /><span className="font-mono text-xs text-gold-400">OFFLINE</span></>}
               </div>

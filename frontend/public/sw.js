@@ -1,5 +1,5 @@
 /**
- * SafeLink-AI Service Worker
+ * SafeZone-AI Service Worker
  * ==========================
  * Offline support for the evacuation app.
  *
@@ -20,10 +20,13 @@
 const CACHE_VERSION = 'dev'; // __SW_BUILD_ID__
 const PRECACHE_MANIFEST = []; // __SW_PRECACHE__
 
-const STATIC_CACHE = `safelink-static-${CACHE_VERSION}`
-const API_CACHE = `safelink-api-${CACHE_VERSION}`
-const TILE_CACHE = `safelink-tiles-${CACHE_VERSION}`
+const STATIC_CACHE = `safezone-static-${CACHE_VERSION}`
+const API_CACHE = `safezone-api-${CACHE_VERSION}`
+const TILE_CACHE = `safezone-tiles-${CACHE_VERSION}`
 const CURRENT_CACHES = new Set([STATIC_CACHE, API_CACHE, TILE_CACHE])
+// Both prefixes are purged: 'safelink-' is the pre-rename prefix, so a
+// returning user still gets their old stale caches deleted.
+const CACHE_PREFIXES = ['safezone-', 'safelink-']
 
 // Always present, even in dev where PRECACHE_MANIFEST is empty.
 const CORE_ASSETS = [
@@ -65,7 +68,11 @@ self.addEventListener('activate', (event) => {
       const keys = await caches.keys()
       await Promise.all(
         keys
-          .filter((key) => key.startsWith('safelink-') && !CURRENT_CACHES.has(key))
+          .filter(
+            (key) =>
+              CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
+              !CURRENT_CACHES.has(key),
+          )
           .map((key) => caches.delete(key)),
       )
       if ('navigationPreload' in self.registration) {
@@ -160,7 +167,7 @@ async function offlineShellResponse() {
         '<body style="font:16px system-ui;background:#0C0A1A;color:#fff;' +
         'display:grid;place-items:center;height:100vh;margin:0;text-align:center">' +
         '<div><h1>You are offline</h1>' +
-        '<p>SafeLink-AI has not finished caching this page yet.</p>' +
+        '<p>SafeZone-AI has not finished caching this page yet.</p>' +
         '<p>Reconnect once to enable full offline use.</p></div>',
       { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
     )
@@ -312,12 +319,12 @@ self.addEventListener('push', (event) => {
     data = { body: event.data.text() }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'SafeLink-AI', {
+    self.registration.showNotification(data.title || 'SafeZone-AI', {
       body: data.body || 'New emergency alert',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [200, 100, 200],
-      tag: 'safelink-alert',
+      tag: 'safezone-alert',
       data: { url: data.url || '/' },
     }),
   )
