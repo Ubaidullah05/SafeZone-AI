@@ -430,24 +430,50 @@ def init_db() -> None:
 # Migrations
 # ---------------------------------------------------------------------------
 
+def _existing_columns(conn, table: str) -> set[str]:
+    """
+    Column names for `table`, on either SQLite or PostgreSQL.
+
+    `PRAGMA table_info` is SQLite-only. Running it against PostgreSQL raises a
+    SyntaxError, which aborted startup on Render, so the dialect decides which
+    lookup is used.
+    """
+    cur = conn.cursor()
+    try:
+        if isinstance(conn, SQLiteConnectionWrapper):
+            cur.execute(f"PRAGMA table_info({table})")
+            return {r["name"] for r in cur.fetchall()}
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = %s",
+            (table,),
+        )
+        return {r[0] for r in cur.fetchall()}
+    finally:
+        cur.close()
+
+
 def _migrate(conn) -> None:
     """
     Additive column migrations for databases created before a column existed.
 
     `CREATE TABLE IF NOT EXISTS` will not add a column to an existing table, so
-    new columns must be applied explicitly. Every step is checked against
-    `PRAGMA table_info` first, which makes this safe to run on every startup.
+    new columns must be applied explicitly. Every step is checked against the
+    existing columns first, which makes this safe to run on every startup.
     """
     migrations = [
         ("events", "factors_json", "TEXT"),
         ("events", "provenance", "TEXT"),
     ]
     for table, column, coltype in migrations:
+        existing = _existing_columns(conn, table)
+        if column in existing:
+            continue
         cur = conn.cursor()
-        cur.execute(f"PRAGMA table_info({table})")
-        existing = {r["name"] for r in cur.fetchall()}
-        if column not in existing:
+        try:
             cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+        finally:
+            cur.close()
 
 
 # ---------------------------------------------------------------------------
