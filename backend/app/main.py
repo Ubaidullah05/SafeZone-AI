@@ -18,6 +18,9 @@ Access model (RBAC):
 """
 
 import asyncio
+import json
+import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -58,15 +61,29 @@ from .ground_reality_engine import (
 )
 from .reasoning_engine import build_advisory, district_advisory
 from .learning_engine import record_observation, stats as learning_stats
+from . import historical_seed
+from . import village_history
 from .red_zone_ingestion import (
     ingest_sample, load_backtest_events, build_backtest_villages,
 )
 from .risk_engine import calculate_risk
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init_db()
+    # Opt-out so tests can start from a clean learning slate. The corpus seed
+    # is idempotent, so leaving it on in production is safe.
+    if not os.environ.get("SAFEZONE_SKIP_HISTORY_SEED"):
+        try:
+            historical_seed.seed_if_needed()
+        except Exception:  # noqa: BLE001 - corpus problems must not block startup
+            logger.exception(
+                "Historical seed failed; continuing with prior weights."
+            )
     yield
 
 
@@ -80,10 +97,47 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: bearer tokens travel in the Authorization header, not cookies.
+# CORS: bearer tokens travel in the Authorization header, not cookies, so
+# allow_credentials stays False and "*" is never needed.
+#
+# Origins are an explicit allowlist. In local dev the frontend is served by the
+# Vite dev server, which proxies /api and /ws server-side, so requests are
+# same-origin and CORS is not even exercised. It only matters when the API is
+# called directly from a different origin (e.g. the Vercel-hosted frontend
+# calling the Render-hosted backend), which is why a deployment must set
+# SAFEZONE_CORS_ORIGINS to its real frontend origin.
+#
+# DEV_ORIGINS is only the local-development fallback.
+DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+
+def _cors_origins() -> list[str]:
+    configured = os.environ.get("SAFEZONE_CORS_ORIGINS", "").strip()
+    if configured:
+        return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+    logger.warning(
+        "SAFEZONE_CORS_ORIGINS is not set, so only these origins may call this "
+        "API: %s. That is correct for local development, where the frontend is "
+        "served by the Vite dev server on the same origin. If the frontend is "
+        "deployed to a different host, set SAFEZONE_CORS_ORIGINS to that exact "
+        "origin (comma-separated, no trailing slash) or the browser will block "
+        "every response.",
+        ", ".join(DEV_ORIGINS),
+    )
+    return list(DEV_ORIGINS)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -220,6 +274,21 @@ def get_village(village_id: str):
         if r.id == village_id:
             return r
     raise HTTPException(status_code=404, detail=f"Village '{village_id}' not found")
+
+
+# OFFICIAL only. Returns the village's own event history, how each event is
+# recency-weighted, and whether the derived history or the static inputs are
+# setting the risk. Provenance is reported per event so a panel cannot
+# present derived scenarios as real history.
+@app.get("/api/villages/{village_id}/history")
+def get_village_history(village_id: str, user: dict = Depends(require_official)):
+    villages = load_villages()
+    village = next((v for v in villages if v.id == village_id), None)
+    if village is None:
+        raise HTTPException(status_code=404, detail=f"Village '{village_id}' not found")
+    return village_history.village_history(
+        village_id, static_risk=village.historical_event_risk
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -380,12 +449,62 @@ def get_village_advisory(village_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Learning engine (adaptive weights) - OFFICIAL/ADMIN only
+# Learning engine (adaptive weights)
 # ---------------------------------------------------------------------------
+# PUBLIC, SAFE AGGREGATE. The public dashboard renders an "accuracy" figure
+# from this, so it must stay reachable without a token. It deliberately
+# exposes only counts and confidence - never the factor weights themselves,
+# which would reveal exactly which signals drive the risk model and make it
+# easy to game. Full detail lives on /api/learning/weights below.
 @app.get("/api/learning")
 def get_learning_state():
-    """How much evidence the adaptive model has seen and what weights it uses."""
+    """Public aggregate: how much evidence exists, and how confident we are."""
+    s = learning_stats()
+    return {
+        "n_observations": s["n_observations"],
+        "n_live_observations": s["n_live_observations"],
+        "n_historical_observations": s["n_historical_observations"],
+        "confidence": s["confidence"],
+        "historical_confidence": s["historical_confidence"],
+        "provenance_split": {
+            "documented": s["provenance_split"]["documented"],
+            "derived": s["provenance_split"]["derived"],
+            "live": s["provenance_split"]["live"],
+            "historical": s["provenance_split"]["historical"],
+        },
+        "mode": s["mode"],
+        "updated_at": s["updated_at"],
+        "detail_requires_auth": True,
+    }
+
+
+# OFFICIAL only: the actual factor weights, correlations and prior.
+@app.get("/api/learning/weights")
+def get_learning_weights(user: dict = Depends(require_official)):
+    """Full learning state, including the factor weights themselves."""
     return learning_stats()
+
+
+# OFFICIAL only: what the corpus contains, so the demo can be explained
+# honestly rather than being taken on trust.
+@app.get("/api/learning/corpus")
+def get_corpus_info(user: dict = Depends(require_official)):
+    """Corpus metadata: counts, provenance, and the honesty note."""
+    return historical_seed.corpus_summary()
+
+
+# OFFICIAL only: re-seed the corpus (useful after editing it).
+@app.post("/api/validation/seed-history")
+def seed_history(user: dict = Depends(require_official)):
+    """Idempotently seed the labelled corpus; live observations are kept."""
+    return historical_seed.seed_if_needed(force=True)
+
+
+# OFFICIAL only: wipe learned state and re-seed, for a clean demo run.
+@app.post("/api/validation/reset-learning")
+def reset_learning(user: dict = Depends(require_official)):
+    """Clear all observations and re-seed the corpus."""
+    return historical_seed.reset_learning(keep_corpus_seed=True)
 
 
 # ---------------------------------------------------------------------------
@@ -496,7 +615,12 @@ def adjudicate_report(data: AdjudicateInput, user: dict = Depends(require_offici
 
     learning = None
     if factors:
-        learning = record_observation(factors, data.actual_severity)
+        learning = record_observation(
+            factors,
+            data.actual_severity,
+            source="live",
+            provenance="adjudicated_sos",
+        )
 
     return {
         "report_id": data.report_id,
@@ -639,8 +763,8 @@ def register_event(data: EventInput, user: dict = Depends(require_official)):
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO events "
-            "(id, village_id, location_name, hazard_type, date, observed_severity, magnitude, source, note) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+            "(id, village_id, location_name, hazard_type, date, observed_severity, magnitude, source, note, factors_json, provenance) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
             "ON CONFLICT (id) DO UPDATE SET "
             "village_id=excluded.village_id, "
             "location_name=excluded.location_name, "
@@ -649,7 +773,9 @@ def register_event(data: EventInput, user: dict = Depends(require_official)):
             "observed_severity=excluded.observed_severity, "
             "magnitude=excluded.magnitude, "
             "source=excluded.source, "
-            "note=excluded.note",
+            "note=excluded.note, "
+            "factors_json=excluded.factors_json, "
+            "provenance=excluded.provenance",
             (
                 data.id,
                 data.village_id,
@@ -660,12 +786,35 @@ def register_event(data: EventInput, user: dict = Depends(require_official)):
                 data.magnitude,
                 data.source,
                 data.note,
+                json.dumps(data.factors) if data.factors else None,
+                data.provenance,
             ),
         )
         conn.commit()
     finally:
         conn.close()
-    return {"id": data.id, "registered": True}
+
+    # If the event carries a factor snapshot it also trains the model. The
+    # observation is stored as source='historical' with its provenance label,
+    # so registered events shape the weights without inflating live confidence.
+    learned = None
+    if data.factors:
+        learned = record_observation(
+            data.factors,
+            int(data.observed_severity),
+            source="historical",
+            provenance=data.provenance,
+            village_id=data.village_id,
+            event_ref=data.id,
+        )
+
+    return {
+        "id": data.id,
+        "registered": True,
+        "provenance": data.provenance,
+        "trained": learned is not None,
+        "learning": learned,
+    }
 
 
 @app.get("/api/events")

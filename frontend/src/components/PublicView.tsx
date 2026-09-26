@@ -65,7 +65,7 @@ export default function PublicView() {
   const totalCapacity = safeZones.reduce((s, z) => s + (z.capacity || 0), 0)
 
   return (
-    <div className="min-h-screen bg-base-950 text-white">
+    <div className="min-h-dvh bg-base-950 text-white">
       {/* Top bar */}
       <header className="sticky top-0 z-40 border-b border-theme bg-header/80 px-3 py-2.5 backdrop-blur-xl sm:px-5 sm:py-3">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
@@ -143,13 +143,23 @@ export default function PublicView() {
                 <p className="text-xs text-muted">awaiting official action</p>
               </div>
               <div className="rounded-2xl border border-theme bg-panel p-3 sm:p-4">
-                <p className="font-mono text-2xs uppercase tracking-widest text-muted">System accuracy</p>
+                <p className="font-mono text-2xs uppercase tracking-widest text-muted">
+                  Field evidence
+                </p>
                 <p className="mt-1 text-2xl font-bold text-emerald-400 sm:text-3xl">
                   {learning ? `${Math.round((learning.confidence || 0) * 100)}%` : '—'}
                 </p>
                 <p className="text-xs text-muted">
-                  {learning ? `${learning.observations || learning.n_observations || 0} observations` : 'from outcome validation'}
+                  {learning
+                    ? `confidence from ${learning.n_live_observations ?? 0} confirmed outcomes`
+                    : 'from confirmed field outcomes'}
                 </p>
+                {learning && (learning.n_historical_observations ?? 0) > 0 && (
+                  <p className="mt-1 text-2xs text-muted">
+                    + {learning.n_historical_observations} historical cases informed the
+                    weights, but do not raise this figure
+                  </p>
+                )}
               </div>
             </div>
           </div>

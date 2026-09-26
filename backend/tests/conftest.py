@@ -34,6 +34,9 @@ def client():
     """TestClient bound to a brand-new, freshly-seeded database."""
     os.environ["SAFEZONE_DB_PATH"] = str(_TMP / f"test-{uuid.uuid4().hex}.db")
     os.environ["SAFEZONE_SKIP_SEED"] = ""  # ensure demo seed runs
+    # Tests that assert on observation counts need a clean learning slate.
+    # test_historical_learning.py seeds explicitly where it needs evidence.
+    os.environ["SAFEZONE_SKIP_HISTORY_SEED"] = "1"
 
     from fastapi.testclient import TestClient
 

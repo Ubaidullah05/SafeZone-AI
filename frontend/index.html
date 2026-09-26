@@ -2,12 +2,29 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the layout extend under notches on modern phones;
+         interactive="widget" keeps the on-screen keyboard from resizing the page. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <!-- Stop iOS Safari from re-scaling text after an orientation change. -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="SafeLink-AI — disaster evacuation decision support, works offline." />
+
     <title>SafeLink-AI — Evacuation Decision Support</title>
+
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SafeLink" />
+    <meta name="theme-color" content="#7C3AED" />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>SafeLink-AI requires JavaScript to run.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -205,3 +205,74 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 @supports (padding: env(safe-area-inset-bottom)) {
   .toast-container { bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
+
+/* ============================================================
+   Mobile / device compatibility
+   ============================================================ */
+
+/* Nothing should ever scroll the page sideways. Several panels use wide
+   grids and tables; without this a single overflow breaks the whole layout
+   and the page can be panned off-screen. */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* iOS Safari zooms the viewport in when a field with a computed font-size
+   below 16px is focused, and it does not zoom back out when the field is
+   blurred. Inputs here are styled text-sm (14px), which triggers it on every
+   login and SOS form. !important is required to beat the Tailwind text-*
+   utility classes. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Horizontal padding for notched / landscape devices, applied to the app
+   chrome that spans the full width. */
+@supports (padding: env(safe-area-inset-left)) {
+  .safe-area-x {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+}
+
+/* The on-screen keyboard shrinks the visual viewport on mobile. Locking the
+   page behind a fixed-position overlay is not needed here, but the drawer
+   must be able to scroll when the usable height collapses. */
+.mobile-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Kill the grey flash iOS paints when tapping a link or button. */
+a, button, [role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Respect the OS "reduce motion" setting. The app leans on animation heavily
+   (pulsing alerts, urgency pulse), which is a real accessibility problem for
+   people with vestibular disorders. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Short landscape phones (e.g. 640x360) leave almost no vertical room once
+   the browser chrome is gone. Give the map a usable floor and let long
+   panels scroll rather than clip. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .min-h-\[280px\] { min-height: 200px; }
+  .min-h-\[250px\] { min-height: 180px; }
+  .min-h-\[340px\] { min-height: 220px; }
+}

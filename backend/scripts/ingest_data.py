@@ -16,7 +16,6 @@ The script is idempotent — re-running it replaces existing records.
 
 import csv
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -24,7 +23,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.db import (
-    get_conn,
     insert_villages,
     insert_safe_zones,
     get_villages_from_db,

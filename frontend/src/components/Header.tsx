@@ -1,5 +1,5 @@
 import { Bell, Moon, Sun, User, ShieldCheck, Menu } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../auth/AuthContext'
 
@@ -7,13 +7,34 @@ export default function Header({ isDemoMode, sosActiveCount, onOpenMobileSidebar
   const { toggleTheme, isDay } = useTheme()
   const { user, logout } = useAuth()
   const [showProfile, setShowProfile] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  // Dismiss the profile menu on outside tap or Escape. On touch devices there
+  // is no hover and no second click target, so without this the menu traps you.
+  useEffect(() => {
+    if (!showProfile) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setShowProfile(false)
+      }
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowProfile(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [showProfile])
 
   const displayName = user?.name || 'User'
   const displayEmail = user?.email || ''
   const role = user?.role || ''
 
   return (
-    <header className="relative flex items-center justify-between border-b border-theme bg-header px-3 py-2.5 backdrop-blur-xl z-30 sm:px-6 sm:py-3">
+    <header className="safe-area-x relative z-30 flex items-center justify-between border-b border-theme bg-header px-3 py-2.5 backdrop-blur-xl sm:px-6 sm:py-3">
       {/* Left: Hamburger + Brand */}
       <div className="flex items-center gap-2 sm:gap-3">
         <button
@@ -57,9 +78,11 @@ export default function Header({ isDemoMode, sosActiveCount, onOpenMobileSidebar
           </div>
         </button>
 
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfile(!showProfile)}
+            aria-expanded={showProfile}
+            aria-haspopup="menu"
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-theme bg-panel text-primary transition-all hover:border-violet-500/30"
           >
             <User size={16} className="text-muted" />

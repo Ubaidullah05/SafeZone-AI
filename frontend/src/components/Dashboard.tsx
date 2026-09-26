@@ -12,6 +12,7 @@ import GroundRealityPanel from './GroundRealityPanel'
 import OperationalPriorityTable from './OperationalPriorityTable'
 import AccountsPanel from './AccountsPanel'
 import SatelliteGatewayPanel from './SatelliteGatewayPanel'
+import LearningWeightsPanel from './LearningWeightsPanel'
 import { riskColor, fmtNumber } from '../utils'
 import * as api from '../services/api'
 import { useAuth } from '../auth/AuthContext'
@@ -121,6 +122,7 @@ export default function Dashboard({
               {activeTab === 'sos' && <SOSPanel />}
               {activeTab === 'satellite' && <SatelliteGatewayPanel />}
               {activeTab === 'ground' && <GroundRealityPanel />}
+    {activeTab === 'learning' && (user?.role === 'OFFICIAL' || user?.role === 'ADMIN') && <LearningWeightsPanel />}
               {activeTab === 'accounts' && user?.role === 'ADMIN' && <AccountsPanel />}
               {activeTab === 'scenario' && <ScenarioSimulator onRunScenario={onRunScenario} comparison={scenarioComparison} isRunning={isRunningScenario} />}
               {activeTab === 'relocation' && <div className="space-y-5"><RelocationPanel priorityList={priorityList} recommendation={recommendation} onSelectVillage={onSelectVillage} /><OperationalPriorityTable onSelectVillage={onSelectVillage} /></div>}

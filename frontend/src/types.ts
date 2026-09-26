@@ -180,17 +180,71 @@ export interface AdvisoryResponse {
   generated_at: string
 }
 
+/**
+ * PUBLIC aggregate from GET /api/learning.
+ *
+ * This endpoint deliberately does NOT include the factor weights, so `weights`
+ * is optional here. Only the official `LearningDetail` payload is guaranteed to
+ * carry them.
+ */
 export interface LearningState {
   /** Primary field from backend stats() */
   n_observations: number
   confidence: number
-  weights: Record<string, number>
+  /** Official-only; absent from the public payload. */
+  weights?: Record<string, number>
   prior?: Record<string, number>
   learning_rate?: number
   updated_at?: string
   /** Legacy aliases */
   observations?: number
   alpha_lr?: number
+  /**
+   * Split of evidence by origin. `confidence` is computed from LIVE
+   * adjudications only, so a seeded corpus never inflates it.
+   */
+  n_live_observations?: number
+  n_historical_observations?: number
+  historical_confidence?: number
+  /** Per-factor Pearson r against observed severity; +1 = predicts worse outcomes. */
+  factor_correlations?: Record<string, number>
+  /** 'correlation' (default) or 'dirichlet' (legacy additive). */
+  mode?: string
+  provenance_split?: {
+    live?: number
+    historical?: number
+    documented?: number
+    derived?: number
+    historical_seeded?: boolean
+  }
+  /** Public payload only: indicates the weight detail is behind auth. */
+  detail_requires_auth?: boolean
+}
+
+/** Official-only view: adds the factor weights themselves. */
+export interface LearningDetail extends LearningState {
+  weights: Record<string, number>
+  prior: Record<string, number>
+  factor_correlations: Record<string, number>
+  mode: string
+}
+
+export interface CorpusInfo {
+  version: string | null
+  design?: string
+  /**
+   * The causal weights the corpus ASSUMES. An assumption we chose, not a
+   * measured fact - shown so a reviewer can see what the corpus asserts
+   * instead of inferring it from the resulting weights.
+   */
+  causal_weights?: Record<string, number>
+  control_factors?: string[]
+  expected_recovery?: string
+  why_crossed?: string
+  purpose?: string
+  honesty_note?: string
+  counts?: { documented?: number; derived?: number; total?: number }
+  seeded_version?: string | null
 }
 
 export interface BacktestRow {

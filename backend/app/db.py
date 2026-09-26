@@ -262,6 +262,17 @@ CREATE TABLE IF NOT EXISTS events (
     note            TEXT
 );
 
+CREATE TABLE IF NOT EXISTS learning_observations (
+    id                 TEXT PRIMARY KEY,
+    source             TEXT NOT NULL DEFAULT 'live',
+    provenance         TEXT,
+    village_id         TEXT,
+    factors_json       TEXT NOT NULL,
+    observed_severity  REAL NOT NULL,
+    event_ref          TEXT,
+    created_at         TEXT
+);
+
 CREATE TABLE IF NOT EXISTS auth_attempts (
     email      TEXT NOT NULL,
     action     TEXT NOT NULL,
@@ -368,6 +379,18 @@ CREATE TABLE IF NOT EXISTS satcom_downlink_messages (
 # Connection management
 # ---------------------------------------------------------------------------
 
+def db_identity() -> str:
+    """
+    Identifies the database currently in use.
+
+    Used as a cache key so in-process caches (e.g. the learning weights) can
+    never serve values computed against a different database.
+    """
+    if os.environ.get("SAFEZONE_DB_PATH") or os.environ.get("SAFEZONE_USE_SQLITE") == "1":
+        return f"sqlite:{_get_sqlite_path()}"
+    return f"pg:{_conn_str()}"
+
+
 def get_conn():
     """Open a fresh connection. Uses demo JSON fallback when applicable."""
     if _is_demo_mode():
@@ -386,6 +409,7 @@ def init_db() -> None:
     conn = _connect()
     try:
         _executescript(conn, SCHEMA)
+        _migrate(conn)
         _seed_model_state(conn)
         if not os.environ.get("SAFEZONE_SKIP_SEED"):
             _seed_demo_sos(conn)
@@ -393,6 +417,30 @@ def init_db() -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Migrations
+# ---------------------------------------------------------------------------
+
+def _migrate(conn) -> None:
+    """
+    Additive column migrations for databases created before a column existed.
+
+    `CREATE TABLE IF NOT EXISTS` will not add a column to an existing table, so
+    new columns must be applied explicitly. Every step is checked against
+    `PRAGMA table_info` first, which makes this safe to run on every startup.
+    """
+    migrations = [
+        ("events", "factors_json", "TEXT"),
+        ("events", "provenance", "TEXT"),
+    ]
+    for table, column, coltype in migrations:
+        cur = conn.cursor()
+        cur.execute(f"PRAGMA table_info({table})")
+        existing = {r["name"] for r in cur.fetchall()}
+        if column not in existing:
+            cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
 
 
 # ---------------------------------------------------------------------------

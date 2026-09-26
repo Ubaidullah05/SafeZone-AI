@@ -32,7 +32,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-base-950 text-white">
+    <div className="flex min-h-dvh flex-col bg-base-950 text-white">
       <header className="flex items-center justify-between border-b border-theme bg-header/80 px-5 py-3 backdrop-blur-xl">
           <Link to="/" className="flex items-center gap-2 text-muted transition hover:text-white">
           <ArrowLeft size={15} /> Back to public page

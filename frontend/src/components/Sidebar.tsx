@@ -30,17 +30,28 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, onTabChange, sosCount, role, mobileOpen, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  // Model internals (factor weights, provenance) are official/admin only.
+  const officialNav: NavItem[] = [{ id: 'learning', icon: Brain, label: 'How It Learned', color: '#34D399' }]
   const nav: NavItem[] = role === 'ADMIN'
-    ? [...BASE_NAV, { id: 'accounts', icon: UserPlus, label: 'People', color: '#22D3EE' }]
-    : BASE_NAV
+    ? [...BASE_NAV, ...officialNav, { id: 'accounts', icon: UserPlus, label: 'People', color: '#22D3EE' }]
+    : role === 'OFFICIAL'
+      ? [...BASE_NAV, ...officialNav]
+      : BASE_NAV
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = '' }
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onMobileClose()
+      }
+      window.addEventListener('keydown', onKeyDown)
+      return () => {
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', onKeyDown)
+      }
     }
-  }, [mobileOpen])
+  }, [mobileOpen, onMobileClose])
 
   const handleNav = (id: string) => {
     onTabChange(id)
@@ -116,12 +127,6 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role, mobile
         {sidebarContent}
       </aside>
 
-      {/* Mobile hamburger button - fixed position */}
-      <button
-        onClick={() => {}} // placeholder, actual button is in Header
-        className="hidden"
-      />
-
       {/* Mobile drawer overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -130,8 +135,14 @@ export default function Sidebar({ activeTab, onTabChange, sosCount, role, mobile
             className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
             onClick={onMobileClose}
           />
-          {/* Drawer */}
-          <aside className="absolute left-0 top-0 h-full w-[280px] flex flex-col border-r border-theme bg-sidebar py-5 backdrop-blur-xl animate-slide-in-left">
+          {/* Drawer. Scrollable because the nav plus the footer card overflow
+              short screens and landscape phones. */}
+          <aside
+            className="mobile-scroll absolute left-0 top-0 h-full w-[min(280px,85vw)] flex flex-col overscroll-contain border-r border-theme bg-sidebar py-5 backdrop-blur-xl animate-slide-in-left"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+          >
             {sidebarContent}
           </aside>
         </div>

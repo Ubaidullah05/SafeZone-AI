@@ -28,6 +28,8 @@ import type {
   BacktestResponse,
   GroundRealityResult,
   LearningState,
+  LearningDetail,
+  CorpusInfo,
   OperationalPriorityItem,
   RecommendationResult,
   RiskSummary,
@@ -200,8 +202,25 @@ export async function fetchAdvisory(): Promise<AdvisoryResponse> {
 }
 
 // ---- Learning engine status ----
+
+/**
+ * Public, safe aggregate. Deliberately excludes the factor weights so the
+ * signals driving the risk model are not exposed to the public dashboard.
+ */
 export async function fetchLearningState(): Promise<LearningState> {
   const { data } = await client.get<LearningState>('/api/learning')
+  return data
+}
+
+/** Official only: the factor weights, correlations and prior. */
+export async function fetchLearningDetail(): Promise<LearningDetail> {
+  const { data } = await client.get<LearningDetail>('/api/learning/weights')
+  return data
+}
+
+/** Official only: what the training corpus contains and how it is labelled. */
+export async function fetchCorpusInfo(): Promise<CorpusInfo> {
+  const { data } = await client.get<CorpusInfo>('/api/learning/corpus')
   return data
 }
 

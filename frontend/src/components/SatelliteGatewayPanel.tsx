@@ -70,15 +70,15 @@ export default function SatelliteGatewayPanel() {
   const runSIHDemo = async () => {
     setDemoRunning(true)
     setDemoStep(1)
-    setDemoLog(['[STAGE 1] Simulating regional cellular tower failure in Kedarnath Valley...'])
+    setDemoLog(['[MODELLED] [STAGE 1] Simulating regional cellular tower failure in Kedarnath Valley...'])
 
     // Stage 1: Outage
     await new Promise((r) => setTimeout(r, 1400))
     setDemoStep(2)
     setDemoLog((prev) => [
       ...prev,
-      '[STAGE 2] Terrestrial 4G/5G down. SafeZone Mobile app switches to Off-Grid Protocol.',
-      '[STAGE 2] Scanning Bluetooth BLE spectrum (2.4 GHz) for Satcom Terminals...',
+      '[MODELLED] [STAGE 2] Terrestrial 4G/5G down. SafeZone Mobile app switches to Off-Grid Protocol.',
+      '[MODELLED] [STAGE 2] Scanning Bluetooth BLE spectrum (2.4 GHz) for Satcom Terminals...',
     ])
 
     // Stage 2: BLE Handshake
@@ -89,8 +89,8 @@ export default function SatelliteGatewayPanel() {
     setDemoStep(3)
     setDemoLog((prev) => [
       ...prev,
-      '[STAGE 3] Paired with ISRO DAT-SG Terminal #DATSG-KDR01 (Signal: -54 dBm, Battery: 94%).',
-      '[STAGE 3] Compressing 650-byte civilian distress report into compact 46-byte burst packet...',
+      '[MODELLED] [STAGE 3] Paired with ISRO DAT-SG Terminal #DATSG-KDR01 (Signal: -54 dBm, Battery: 94%).',
+      '[REAL] [STAGE 3] Compressing 650-byte civilian distress report into compact 44-byte burst packet...',
       'Encoded: "SZ1|SOS|V008|30.2030|78.4600|5|4|1|DATSG-KDR01|1092|FL"',
     ])
 
@@ -99,8 +99,8 @@ export default function SatelliteGatewayPanel() {
     setDemoStep(4)
     setDemoLog((prev) => [
       ...prev,
-      '[STAGE 4] Transmitting burst packet via MSS S-Band (2670 MHz) to GSAT-7R Satellite...',
-      '[STAGE 4] Propagation delay transit (~1120ms orbital slant range)...',
+      '[MODELLED] [STAGE 4] Transmitting burst packet via MSS S-Band (2670 MHz) to GSAT-7R Satellite...',
+      '[MODELLED] [STAGE 4] Propagation delay transit (~1120ms orbital slant range)...',
     ])
 
     try {
@@ -120,9 +120,9 @@ export default function SatelliteGatewayPanel() {
       setDemoStep(5)
       setDemoLog((prev) => [
         ...prev,
-        `[STAGE 5] INMCC Ground Gateway received burst. Decoded & ingested into SafeZone Backend.`,
-        `[STAGE 5] Operational Priority: P1_URGENT | Latency: ${res.telemetry.latency_ms}ms | C/N0: ${res.telemetry.carrier_to_noise_dbhz} dB-Hz`,
-        `[SUCCESS] Two-way satellite ACK received: ${res.ack_code}`,
+        `[MODELLED] [STAGE 5] INMCC Ground Gateway received burst. Decoded & ingested into SafeZone Backend.`,
+        `[REAL] [STAGE 5] Operational Priority: P1_URGENT | Latency: ${res.telemetry.latency_ms}ms | C/N0: ${res.telemetry.carrier_to_noise_dbhz} dB-Hz`,
+        `[REAL] [SUCCESS] Two-way satellite ACK received: ${res.ack_code}`,
       ])
       loadData()
     } catch (err) {
@@ -197,7 +197,7 @@ export default function SatelliteGatewayPanel() {
           </div>
         </div>
 
-        {/* Live Satellite Metrics Bar */}
+        {/* Modelled Link Telemetry */}
         <div className="mt-5 grid grid-cols-2 gap-3 border-t border-cyan-500/20 pt-4 sm:grid-cols-4 lg:grid-cols-5">
           <div>
             <p className="font-mono text-2xs uppercase text-slate-400">Primary Constellation</p>
@@ -346,6 +346,69 @@ export default function SatelliteGatewayPanel() {
       {/* Tab 1: Architecture & Reality */}
       {activeTab === 'overview' && (
         <div className="grid gap-5 lg:grid-cols-2">
+          {/* Modelled vs Implemented - honesty disclosure */}
+          <div className="rounded-2xl border border-golden/30 bg-golden/5 p-5 shadow-card">
+            <h3 className="font-display text-base font-bold text-white mb-2">
+              What is real, and what is modelled
+            </h3>
+            <p className="text-xs text-muted mb-4 leading-relaxed">
+              No satellite licence, uplink, or RF hardware is used here. The
+              protocol design is fully implemented and testable; the radio hop
+              is modelled from published link parameters.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <p className="font-mono text-2xs uppercase tracking-wider text-emerald-300 mb-2">
+                  Implemented
+                </p>
+                <ul className="space-y-1.5 text-2xs text-slate-300">
+                  {[
+                    'SZ1 burst packet codec + compression',
+                    'Orbital link budget & latency maths',
+                    'Doppler / propagation-delay model',
+                    'Terminal fleet state machine',
+                    'Downlink routing & ACK handling',
+                    'SOS ingestion into the risk pipeline',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-1.5">
+                      <CheckCircle2 size={12} className="mt-0.5 shrink-0 text-emerald-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
+                <p className="font-mono text-2xs uppercase tracking-wider text-cyan-300 mb-2">
+                  Modelled
+                </p>
+                <ul className="space-y-1.5 text-2xs text-slate-300">
+                  {[
+                    'RF propagation & real C/N0 values',
+                    'Bluetooth BLE pairing / discovery',
+                    'Actual uplink to ISRO / GSAT-7R',
+                    'Ground-station receipt (INMCC)',
+                    'Terminal battery & fleet telemetry',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-1.5">
+                      <AlertTriangle size={12} className="mt-0.5 shrink-0 text-cyan-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <p className="mt-3 border-t border-golden/20 pt-3 text-2xs leading-relaxed text-slate-400">
+              In this build the phone-to-backend hop is a normal HTTPS call, so no
+              licence is required. In the field the same protocol would ride a
+              Satcom terminal. The engineering question this answers &mdash;{' '}
+              <em>what do you send when you have very few bytes?</em> &mdash; is
+              implemented, not simulated.
+            </p>
+          </div>
+
           {/* Architecture flow */}
           <div className="rounded-2xl border border-theme bg-bg-card p-5 shadow-card">
             <h3 className="font-display text-base font-bold text-white mb-2">
@@ -424,7 +487,7 @@ export default function SatelliteGatewayPanel() {
                 <div>
                   <p className="font-semibold text-white">Bandwidth-Conscious Burst Compression</p>
                   <p className="text-2xs text-muted mt-0.5">
-                    Satellite links cannot afford large JSON/HTTP payloads. SafeZone&apos;s `SZ1` burst protocol reduces packet overhead by 93.5%.
+                    Satellite links cannot afford large JSON/HTTP payloads. SafeZone&apos;s `SZ1` burst protocol reduces packet overhead by 93.2%.
                   </p>
                 </div>
               </div>
@@ -444,7 +507,7 @@ export default function SatelliteGatewayPanel() {
               <p className="text-muted">LINK BUDGET SIMULATION:</p>
               <p className="text-cyan-300">Carrier Frequency: 2670.0 MHz (S-Band Uplink)</p>
               <p className="text-cyan-300">GEO Slant Range: ~37,200 km (Transit: ~248 ms x 2)</p>
-              <p className="text-emerald-400">Total System Latency: ~1050 ms (Terminal + Space + Ground)</p>
+              <p className="text-emerald-400">Modelled Total System Latency: ~1050 ms (Terminal + Space + Ground)</p>
             </div>
           </div>
         </div>
@@ -463,7 +526,10 @@ export default function SatelliteGatewayPanel() {
                   <h4 className="mt-2 font-display text-sm font-bold text-white">{t.name}</h4>
                   <p className="text-2xs text-muted">{t.model}</p>
                 </div>
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span
+                  className="flex h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-400"
+                  title="Modelled terminal - not a live RF connection"
+                />
               </div>
 
               <div className="mt-4 space-y-2 border-t border-theme pt-3 font-mono text-xs">
@@ -560,10 +626,10 @@ SZ1|SOS|V008|30.2030|78.4600|5|4|1|DATSG-KDR01|1092|FL
           {/* Form */}
           <div className="rounded-2xl border border-theme bg-bg-card p-5 shadow-card">
             <h3 className="font-display text-base font-bold text-white mb-2">
-              Broadcast Satellite Emergency Advisory (Forward Link)
+              Emergency Advisory &mdash; Downlink Broadcast
             </h3>
             <p className="text-xs text-muted mb-4">
-              Send critical weather updates or evacuation directives from the Disaster Control Centre down to all field terminals and civilian phones via satellite broadcast.
+              Send critical weather updates or evacuation directives from the Disaster Control Centre down to every registered field terminal. The satellite forward link is modelled; the routing and delivery record are real.
             </p>
 
             <form onSubmit={handleSendBroadcast} className="space-y-4">
@@ -607,7 +673,7 @@ SZ1|SOS|V008|30.2030|78.4600|5|4|1|DATSG-KDR01|1092|FL
 
               {broadcastSuccess && (
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center gap-2">
-                  <CheckCircle2 size={16} /> Beamed down via GSAT-7R MSS forward link. Field terminals notified.
+                  <CheckCircle2 size={16} /> Downlink advisory queued for all matching terminals (uplink hop modelled).
                 </div>
               )}
 
@@ -616,7 +682,7 @@ SZ1|SOS|V008|30.2030|78.4600|5|4|1|DATSG-KDR01|1092|FL
                 disabled={broadcasting}
                 className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-blue-500 transition disabled:opacity-50"
               >
-                <Send size={14} /> {broadcasting ? 'Transmitting via Satellite...' : 'Beam Satellite Downlink'}
+                <Send size={14} /> {broadcasting ? 'Routing downlink...' : 'Send Downlink Advisory'}
               </button>
             </form>
           </div>

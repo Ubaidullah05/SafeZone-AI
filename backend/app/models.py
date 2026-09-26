@@ -6,7 +6,7 @@ auth/authority flows, SOS reports, adjudications, and the advisory output of
 the reasoning engine. The simulated mesh-network models have been removed.
 """
 
-from typing import Optional
+from typing import Dict, Optional
 from pydantic import BaseModel, Field
 
 from .roles import Role
@@ -175,6 +175,13 @@ class EventInput(BaseModel):
     magnitude: str = ""
     source: str = ""
     note: str = ""
+    # Provenance label: "documented" (a real record) or "derived" (a
+    # constructed scenario). Defaults to "documented" because the endpoint is
+    # official-only, but it can always be overridden.
+    provenance: str = "documented"
+    # Optional factor snapshot. When supplied, the event also trains the
+    # learning engine; without it the event is recorded but not learned from.
+    factors: Optional[Dict[str, float]] = None
 
 
 # ---------------------------------------------------------------------------

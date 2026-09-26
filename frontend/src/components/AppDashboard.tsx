@@ -18,8 +18,6 @@ export default function AppDashboard() {
   const [isRunningScenario, setIsRunningScenario] = useState(false)
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
-
     async function loadInitialData() {
       try {
         const [health, v, sz, summary] = await Promise.all([
@@ -94,7 +92,7 @@ export default function AppDashboard() {
 
   if (isLoading || !riskSummary) {
     return (
-      <div className="flex h-screen items-center justify-center bg-base-950 text-slate-500">
+      <div className="flex h-dvh items-center justify-center bg-base-950 text-slate-500">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
           <p className="font-mono text-sm">Loading SafeLink - AI…</p>
@@ -104,7 +102,7 @@ export default function AppDashboard() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-base-950">
+    <div className="flex h-dvh flex-col overflow-hidden bg-base-950">
       <Dashboard
         villages={villages}
         safeZones={safeZones}
