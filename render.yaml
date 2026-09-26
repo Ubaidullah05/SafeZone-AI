@@ -12,6 +12,12 @@ services:
       # https://your-app.vercel.app. Required in production: the backend
       # refuses wildcard CORS, so a cross-origin frontend is blocked until
       # this is set. Render prompts for the value on deploy.
+      #
+      # ORDERING: the Vercel URL does not exist until the frontend is
+      # deployed, so on a first deploy enter any placeholder origin
+      # (e.g. https://placeholder.invalid). After deploying the frontend,
+      # replace it with the real Vercel URL and save - Render redeploys
+      # automatically and the frontend then starts working.
       - key: SAFEZONE_CORS_ORIGINS
         sync: false
       - key: DATABASE_URL
