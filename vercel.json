@@ -5,6 +5,9 @@
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/((?!assets/|icon-|apple-touch-icon|manifest.json|sw.js|favicon).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/|assets/|icon-|apple-touch-icon|manifest.json|sw.js|favicon).*)",
+      "destination": "/index.html"
+    }
   ]
 }

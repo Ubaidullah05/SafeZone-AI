@@ -68,8 +68,27 @@ client.interceptors.request.use((config) => {
 })
 
 // Handle 401 (authority sessions only; public calls do not send tokens)
+// and reject a very specific deployment failure.
 client.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // A static host usually rewrites unmatched paths to index.html. If
+    // VITE_API_URL is missing the requests go to the frontend's own origin,
+    // so /api/... answers 200 + HTML. Returning that as if it were the payload
+    // made callers store a string where an array was expected, and the
+    // resulting `.filter is not a function` unmounted React into a blank page.
+    // The client is JSON-only, so HTML here always means a misrouted request.
+    const contentType = String(res.headers?.['content-type'] ?? '')
+    if (contentType.includes('text/html')) {
+      const url = res.config?.url ?? '<unknown>'
+      return Promise.reject(
+        new Error(
+          `API request for ${url} returned HTML instead of JSON. ` +
+            'VITE_API_URL is probably unset or wrong for this deployment.',
+        ),
+      )
+    }
+    return res
+  },
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       window.localStorage.removeItem('safezone_token')

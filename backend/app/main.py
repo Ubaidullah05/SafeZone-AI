@@ -192,6 +192,24 @@ def require_volunteer(authorization: Optional[str] = Header(None)) -> dict:
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+@app.get("/")
+def root():
+    """
+    Service landing page.
+
+    Render probes `/` when deciding whether the instance is live, and humans
+    open it to check the deployment. Returning 404 there made an otherwise
+    healthy deploy look broken in the logs.
+    """
+    return {
+        "service": "SafeZone-AI backend",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/api/health",
+        "api": "All endpoints are under /api/*.",
+    }
+
+
 @app.get("/api/health")
 def health():
     import os
