@@ -40,7 +40,18 @@ export default {
         body: ['var(--font-body)', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       fontSize: {
-        '2xs': ['0.65rem', { lineHeight: '1rem' }],
+        // Slightly larger than the Tailwind defaults. The dense ops tables
+        // leaned on 10-12px, which is hard to read on a field tablet, so every
+        // step below body text is nudged up ~1px. Overriding the scale here
+        // resizes the whole app at once instead of editing hundreds of
+        // `text-*` call sites. Display sizes (2xl and up) are left alone so
+        // headings and KPI numbers keep their impact and do not overflow.
+        '2xs': ['0.72rem', { lineHeight: '1.05rem' }],
+        xs: ['0.8125rem', { lineHeight: '1.15rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.4rem' }],
+        base: ['1.0625rem', { lineHeight: '1.65rem' }],
+        lg: ['1.1875rem', { lineHeight: '1.85rem' }],
+        xl: ['1.3125rem', { lineHeight: '1.9rem' }],
       },
       boxShadow: {
         'glow-v': 'var(--shadow-glow)',

@@ -32,6 +32,42 @@ def test_submit_sos_invalid_severity_422(client):
     assert client.post("/api/sos/submit", json=bad).status_code == 422
 
 
+def test_replayed_client_token_creates_only_one_report(client, official_headers):
+    """A retried submit must not become a second report on the dashboard.
+
+    A device that loses the response to its first attempt replays the queued
+    SOS with the same `client_token`. That has to be idempotent, otherwise one
+    civilian pressing the button once alerts the authorities twice.
+    """
+    payload = {**VALID_REPORT, "client_token": "c-replay-0001"}
+
+    first = client.post("/api/sos/submit", json=payload)
+    second = client.post("/api/sos/submit", json=payload)
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()["id"] == second.json()["id"]
+
+    reports = client.get("/api/sos/reports", headers=official_headers).json()
+    matching = [r for r in reports if r.get("client_token") == "c-replay-0001"]
+    assert len(matching) == 1
+
+
+def test_distinct_client_tokens_create_separate_reports(client):
+    """Two genuinely different SOS presses must both reach the authorities."""
+    a = client.post("/api/sos/submit", json={**VALID_REPORT, "client_token": "c-distinct-a"})
+    b = client.post("/api/sos/submit", json={**VALID_REPORT, "client_token": "c-distinct-b"})
+
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_submit_without_client_token_still_works(client):
+    """The idempotency key is optional; older clients keep working."""
+    r = client.post("/api/sos/submit", json=VALID_REPORT)
+    assert r.status_code == 200, r.text
+    assert r.json()["id"]
+
+
 def test_sos_stats_public(client):
     r = client.get("/api/sos/stats")
     assert r.status_code == 200

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AlertTriangle, Clock, Filter, RefreshCw, Phone, Users, Wifi, WifiOff } from 'lucide-react'
 import * as api from '../services/api'
 import { useAlertWebSocket } from '../hooks/useWebSocket'
@@ -24,10 +24,44 @@ export default function SOSPanel() {
   const [newFlash, setNewFlash] = useState<number | null>(null)
   const { alerts, connected: wsConnected } = useAlertWebSocket(true)
 
-  const loadData = useCallback(async () => { setLoading(true); try { const [r, s] = await Promise.all([api.fetchSOSReports(), api.fetchSOSStats()]); setReports(r); setStats(s) } catch { /* backend down */ } finally { setLoading(false) } }, [])
+  // Background refreshes must not blank the list or throw away the officer's
+  // selection, so `loading` is only raised for the first paint and for an
+  // explicit refresh. Silent updates swap the rows in place.
+  const loadData = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
+    try {
+      const [r, s] = await Promise.all([api.fetchSOSReports(), api.fetchSOSStats()])
+      setReports(r)
+      setStats(s)
+      setSelected(prev => (prev && r.some(x => x.id === prev.id) ? { ...prev, ...r.find(x => x.id === prev.id)! } : prev))
+    } catch { /* backend down */ } finally { setLoading(false) }
+  }, [])
+
   useEffect(() => { loadData() }, [loadData])
-  useEffect(() => { if (alerts?.type === 'sos_update') { loadData(); setNewFlash(Date.now()); setTimeout(() => setNewFlash(null), 4000) } }, [alerts, loadData])
-  useEffect(() => { if (!wsConnected) { const i = setInterval(loadData, 5000); return () => clearInterval(i) } }, [wsConnected, loadData])
+
+  // A live alert already raises a toast in the dashboard shell, which is
+  // visible from every tab. Re-announcing it here as a banner meant one
+  // civilian SOS produced two notifications, so this only marks the panel.
+  const lastAlertAt = useRef<string | null>(null)
+  useEffect(() => {
+    if (alerts?.type !== 'sos_update') return
+    void loadData({ silent: true })
+    const stamp = alerts.timestamp
+    if (stamp && stamp !== lastAlertAt.current) {
+      lastAlertAt.current = stamp
+      setNewFlash(Date.now())
+      setTimeout(() => setNewFlash(null), 4000)
+    }
+  }, [alerts, loadData])
+
+  // Polling is the fallback for when the socket is unavailable. It is slowed
+  // down and made silent: the previous 5s full reload was the visible
+  // "keeps refreshing" behaviour, and it also reset the open detail panel.
+  useEffect(() => {
+    if (wsConnected) return
+    const i = setInterval(() => loadData({ silent: true }), 15000)
+    return () => clearInterval(i)
+  }, [wsConnected, loadData])
 
   const handleStatusUpdate = async (id: string, status: SOSReport['status']) => { try { await api.updateSOSReport(id, { status }); loadData(); setSelected(null) } catch { /* ignore */ } }
   const filtered = reports.filter(r => (!filter.status || r.status === filter.status) && (!filter.severity || r.severity === Number(filter.severity)))
@@ -66,7 +100,7 @@ export default function SOSPanel() {
           </select>
         </div>
         <div className="flex gap-2 sm:gap-3">
-          <button onClick={loadData} className="flex items-center gap-2 rounded-xl border border-theme bg-bg-card px-3 py-2 text-xs font-medium text-violet-300/60 transition hover:bg-violet-500/5 hover:text-white sm:px-4 sm:py-2.5 sm:text-sm"><RefreshCw size={13} /> Refresh</button>
+          <button onClick={() => loadData()} className="flex items-center gap-2 rounded-xl border border-theme bg-bg-card px-3 py-2 text-xs font-medium text-violet-300/60 transition hover:bg-violet-500/5 hover:text-white sm:px-4 sm:py-2.5 sm:text-sm"><RefreshCw size={13} /> Refresh</button>
         </div>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-[1fr_420px]">

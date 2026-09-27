@@ -531,6 +531,16 @@ def reset_learning(user: dict = Depends(require_official)):
 @app.post("/api/sos/submit", response_model=SOSReportResult)
 def submit_sos(report: SOSReportInput):
     """Citizen submits an SOS report (no account required)."""
+    # Idempotency: a device that queued the alert offline, or that lost the
+    # response to its first attempt, retries with the same client_token. Return
+    # the original report instead of inserting a second one, so a single
+    # civilian SOS always shows once on the authority side.
+    token = (report.client_token or "").strip()
+    if token:
+        for existing in load_sos_reports():
+            if existing.get("client_token") == token:
+                return existing
+
     villages = load_villages()
     village = next((v for v in villages if v.id == report.village_id), None)
     pop = village.population if village else 2000

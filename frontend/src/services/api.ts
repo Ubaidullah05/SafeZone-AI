@@ -257,21 +257,33 @@ export async function submitSOS(report: {
   medical_details?: string
   latitude: number
   longitude: number
+  /** Stable id from the citizen's device; reused on every retry. */
+  client_token?: string
 }): Promise<SOSReport> {
+  // Generated once per attempt at pressing the button, then carried through the
+  // offline queue. If the first request reached the server but its response was
+  // lost, the replay presents the same token and the server returns the
+  // original report instead of creating a second one.
+  const clientToken = report.client_token || `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  const payload = { ...report, client_token: clientToken }
+
   try {
-    const { data } = await client.post<SOSReport>('/api/sos/submit', report)
+    const { data } = await client.post<SOSReport>('/api/sos/submit', payload)
     return data
   } catch (err) {
-    // Offline or network error: store locally in queue & cache for auto-sync
-    const localId = `LOCAL-${Date.now()}`
+    // Offline or network error: store locally in queue & cache for auto-sync.
+    // The queued id and the idempotency token are the same value, so a retry
+    // can never duplicate the report.
+    const localId = `LOCAL-${clientToken}`
     const localReport: SOSReport = {
       ...report,
       id: localId,
+      client_token: clientToken,
       status: 'PENDING_SYNC',
       priority_score: 50,
       timestamp: new Date().toISOString(),
     }
-    queueSOS({ ...report, id: localId })
+    queueSOS({ ...payload, id: localId })
     await addCachedSOSReport(localReport).catch(() => {})
     return localReport
   }
@@ -292,6 +304,9 @@ export async function syncOfflineQueue(): Promise<{ synced: number; failed: numb
       medical_details: String(item.medical_details || ''),
       latitude: Number(item.latitude) || 0,
       longitude: Number(item.longitude) || 0,
+      // The queued id is the device-generated token, so replaying a queue that
+      // already synced once stays idempotent.
+      client_token: String(item.id || '').replace(/^LOCAL-/, ''),
     }
     await client.post<SOSReport>('/api/sos/submit', payload)
   })

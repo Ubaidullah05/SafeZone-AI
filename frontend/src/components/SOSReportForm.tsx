@@ -45,7 +45,7 @@ function findNearestVillage(villages: VillageResult[], lat: number, lng: number)
 
 export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps) {
   const [phase, setPhase] = useState<
-    'locating' | 'sending' | 'sat_ble_pairing' | 'sat_compressing' | 'sat_uplinking' | 'success' | 'error'
+    'locating' | 'sending' | 'sat_ble_pairing' | 'sat_compressing' | 'sat_uplinking' | 'success' | 'queued' | 'error'
   >('locating')
   const [errorMsg, setErrorMsg] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -84,8 +84,16 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
 
       setPhase('sending')
       try {
-        await api.submitSOS(report)
-        setPhase('success')
+        const result = await api.submitSOS(report)
+        // `submitSOS` resolves with a PENDING_SYNC report when the alert could
+        // not reach the server and was stored on the device instead. Telling
+        // the citizen "sent" then would be a lie in an emergency, so the queued
+        // state gets its own screen with retry guidance.
+        if (result.status === 'PENDING_SYNC') {
+          setPhase('queued')
+        } else {
+          setPhase('success')
+        }
         if (onSubmit) onSubmit()
       } catch {
         // Offer satellite fallback if terrestrial network failed
@@ -398,6 +406,50 @@ export default function SOSReportForm({ onSubmit, onClose }: SOSReportFormProps)
               </p>
               <p className="flex items-center gap-1.5 text-slate-300">
                 <span>📍</span> Safe Zone route & capacity ledger updated
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="mt-2 w-full rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 py-2.5 font-semibold text-white shadow-lg transition hover:from-violet-500 hover:to-cyan-500"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* Queued-offline phase: saved on the device, NOT yet with officials */}
+        {phase === 'queued' && (
+          <div className="flex flex-col items-center py-4 gap-3">
+            <div className="h-14 w-14 rounded-full flex items-center justify-center bg-amber-500/15">
+              <WifiOff size={28} className="text-amber-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-white">SOS Saved on This Phone</p>
+              <p className="text-xs text-surface-400 mt-1">
+                No network right now, so this has <strong className="text-amber-300">not reached officials yet</strong>. It is
+                stored on this device and will send automatically as soon as you get signal.
+              </p>
+            </div>
+
+            <div className="w-full rounded-2xl border border-amber-500/30 bg-amber-950/20 p-3.5 text-xs text-slate-300 space-y-2">
+              <p className="font-mono text-2xs uppercase text-amber-400 font-semibold">What happens next</p>
+              <p className="flex items-start gap-1.5 text-slate-300">
+                <span>1.</span> Keep this page open or reopen the app later — the alert is saved.
+              </p>
+              <p className="flex items-start gap-1.5 text-slate-300">
+                <span>2.</span> The moment any network returns, the SOS is sent to district officials automatically.
+              </p>
+              <p className="flex items-start gap-1.5 text-slate-300">
+                <span>3.</span> Do not press the SOS button again — it will not create a second alert.
+              </p>
+            </div>
+
+            <div className="w-full rounded-xl border border-danger/25 bg-danger/5 p-3 text-xs text-slate-300 space-y-1">
+              <p className="font-mono text-2xs uppercase text-danger-light font-semibold mb-1">Do not rely on this alone</p>
+              <p className="text-slate-300">
+                A queued SOS cannot call an ambulance. If anyone is in immediate danger, also shout for help, move to a
+                safe place, and use a phone call or a physical distress button.
               </p>
             </div>
 

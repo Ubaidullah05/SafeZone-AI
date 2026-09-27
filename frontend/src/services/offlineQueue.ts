@@ -115,7 +115,18 @@ export function initOfflineSync(
         void triggerSync();
     }
 
+    // A queued SOS must not be stranded just because the signal came back
+    // while the app was backgrounded, or because the browser fires no `online`
+    // event (a captive portal or a flaky link can leave `navigator.onLine`
+    // true while requests still fail). Retry periodically until the queue
+    // drains; the interval is cheap because `triggerSync` exits immediately
+    // when there is nothing queued.
+    const retry = setInterval(() => {
+        void triggerSync();
+    }, 30000);
+
     return () => {
         window.removeEventListener("online", handleOnline);
+        clearInterval(retry);
     };
 }

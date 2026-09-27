@@ -25,7 +25,7 @@ SOS reports into an operational priority ordering is the piece most similar
 tools do not attempt; the offline operation is what makes it usable during a
 real event.
 
-## Offline operation (verified)
+## Offline / no-network operation
 
 The app keeps working when the backend is unreachable. This was tested with the
 **server process confirmed dead** — not merely a browser offline toggle, which
@@ -39,6 +39,26 @@ With the server down the app still:
 - returns cached API responses
 - queues new SOS reports as `PENDING_SYNC` and sends them on reconnect
 
+### What actually happens when you press SOS with no signal
+
+This is the important part, because "it looked like it sent" was the original
+bug. The steps are now:
+
+1. **The citizen presses SOS.** The app captures GPS coordinates.
+2. **The request goes to the server.** If it fails because there is no network,
+   the report is written to `localStorage` under `safezone_sos_queue` and to the
+   cached report list with status `PENDING_SYNC`.
+3. **The citizen is told the truth.** The form shows *"SOS Saved on This Phone —
+   has **not** reached officials yet"*, plus a warning that a queued alert cannot
+   summon an ambulance. It never claims success for a message that was not sent.
+4. **It sends itself later.** The queue is flushed on the browser `online` event,
+   on app start, and every 30 seconds as a backstop for the case where signal
+   returns while the app is backgrounded and no `online` event fires.
+5. **Repeats are safe.** Each press gets a `client_token` generated on the device
+   before the first attempt. The server returns the original report for a repeat
+   of the same token, so a retry after a lost response cannot become a second
+   alert on the authority dashboard.
+
 ### Requirements and honest limits
 
 | Requirement | Why |
@@ -46,6 +66,11 @@ With the server down the app still:
 | A **production build** is required — `npm run build && npm run preview` | The service worker is deliberately not registered in `npm run dev`, because a cached bundle hides your edits |
 | `localhost` **or HTTPS** | Browsers refuse service workers on insecure origins, so `http://<LAN-IP>:3000` will not install one. Use `VITE_HTTPS=true` for a self-signed dev certificate, or test on `localhost` |
 | Data must have been loaded while online | API calls are network-first; an endpoint never visited has nothing cached and returns a 503 page rather than stale data |
+
+A queued SOS lives only in that one browser's storage. It is **not** broadcast,
+not visible to officials, and lost if the user clears site data or the device is
+lost before reconnecting. For a real deployment the satellite/BLE path or a
+backend store-and-forward is the only way to cover a total network outage.
 
 The two gaps worth knowing: the authority dashboard route and offline SOS
 background-sync are implemented and cached correctly but have not been

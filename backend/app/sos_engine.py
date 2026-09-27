@@ -10,11 +10,14 @@ are the feed for both the ground-reality scoring and the learning engine.
 """
 
 import json
+import logging
 import time
 from typing import Optional
 
 from . import db
 from .models import SOSReportInput, SOSReportResult, SOSPriorityItem
+
+logger = logging.getLogger(__name__)
 
 # Emergency type weights for priority calculation
 EMERGENCY_WEIGHTS = {
@@ -193,6 +196,7 @@ def load_sos_reports() -> list[dict]:
                 r["sat_latency_ms"] = float(r.get("sat_latency_ms") or 0.0)
                 r["sat_signal_dbhz"] = float(r.get("sat_signal_dbhz") or 0.0)
                 r["raw_sat_packet"] = r.get("raw_sat_packet") or ""
+                r["client_token"] = r.get("client_token") or ""
             return reports
         finally:
             conn.close()
@@ -235,6 +239,7 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
     sat_latency = float(getattr(report, "sat_latency_ms", 0.0) or 0.0)
     sat_signal = float(getattr(report, "sat_signal_dbhz", 0.0) or 0.0)
     raw_packet = getattr(report, "raw_sat_packet", "") or ""
+    client_token = (getattr(report, "client_token", "") or "").strip()
 
     report_id = None
     try:
@@ -246,8 +251,8 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
                 "INSERT INTO sos_reports (id, reporter_name, reporter_phone, village_id, village_name, "
                 "emergency_type, severity, description, people_affected, medical_emergency, medical_details, "
                 "latitude, longitude, timestamp, status, priority_score, relay_hops, reached_gateway, "
-                "transmission_channel, sat_terminal_id, sat_constellation, sat_latency_ms, sat_signal_dbhz, raw_sat_packet) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "transmission_channel, sat_terminal_id, sat_constellation, sat_latency_ms, sat_signal_dbhz, raw_sat_packet, client_token) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     report_id,
                     report.reporter_name,
@@ -273,13 +278,18 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
                     sat_latency,
                     sat_signal,
                     raw_packet,
+                    client_token,
                 ),
             )
             conn.commit()
         finally:
             conn.close()
     except Exception:
-        # Fallback to memory
+        # Falling back to memory means this report exists only until the
+        # process restarts, which for a distress call means it is lost. A
+        # silent `except` hid a broken INSERT behind HTTP 200 responses, so the
+        # failure is logged loudly.
+        logger.exception("Failed to persist SOS report; keeping it in memory only")
         if not report_id:
             report_id = _generate_report_id()
 
@@ -309,6 +319,7 @@ def add_sos_report(report: SOSReportInput, village_population: int = 2000) -> SO
         "sat_latency_ms": sat_latency,
         "sat_signal_dbhz": sat_signal,
         "raw_sat_packet": raw_packet,
+        "client_token": (report.client_token or "").strip(),
         "adjudicated_by": None,
         "adjudicated_at": None,
     }

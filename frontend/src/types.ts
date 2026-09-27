@@ -299,6 +299,8 @@ export interface SOSReport {
   sat_latency_ms?: number
   sat_signal_dbhz?: number
   raw_sat_packet?: string
+  /** Device-generated idempotency key, so a replayed submit stays one report. */
+  client_token?: string
 }
 
 export interface SOSStats {

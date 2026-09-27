@@ -237,6 +237,7 @@ CREATE TABLE IF NOT EXISTS sos_reports (
     sat_latency_ms    REAL NOT NULL DEFAULT 0,
     sat_signal_dbhz   REAL NOT NULL DEFAULT 0,
     raw_sat_packet    TEXT NOT NULL DEFAULT '',
+    client_token      TEXT NOT NULL DEFAULT '',
     adjudicated_by    TEXT,
     adjudicated_at    TEXT
 );
@@ -461,9 +462,21 @@ def _migrate(conn) -> None:
     new columns must be applied explicitly. Every step is checked against the
     existing columns first, which makes this safe to run on every startup.
     """
+    # Every column the app writes but `CREATE TABLE IF NOT EXISTS` cannot add
+    # to a database created earlier. The satellite set was missing here, so
+    # every SOS INSERT failed on an existing database and the report was kept
+    # only in memory.
     migrations = [
         ("events", "factors_json", "TEXT"),
         ("events", "provenance", "TEXT"),
+        ("sos_reports", "transmission_channel", "TEXT NOT NULL DEFAULT 'TERRESTRIAL'"),
+        ("sos_reports", "sat_terminal_id", "TEXT NOT NULL DEFAULT ''"),
+        ("sos_reports", "sat_constellation", "TEXT NOT NULL DEFAULT ''"),
+        ("sos_reports", "sat_latency_ms", "REAL NOT NULL DEFAULT 0"),
+        ("sos_reports", "sat_signal_dbhz", "REAL NOT NULL DEFAULT 0"),
+        ("sos_reports", "raw_sat_packet", "TEXT NOT NULL DEFAULT ''"),
+        ("sos_reports", "client_token", "TEXT NOT NULL DEFAULT ''"),
+        ("sos_reports", "medical_details", "TEXT NOT NULL DEFAULT ''"),
     ]
     for table, column, coltype in migrations:
         existing = _existing_columns(conn, table)
@@ -472,8 +485,17 @@ def _migrate(conn) -> None:
         cur = conn.cursor()
         try:
             cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+            logger.info("Added missing column %s.%s", table, column)
+        except Exception:
+            # A failed migration must not abort startup; the caller decides
+            # what to do, and the error is recorded rather than swallowed.
+            logger.exception("Migration failed for %s.%s", table, column)
+            raise
         finally:
             cur.close()
+    # Persist the ALTERs immediately. Without this the changes are rolled back
+    # when the connection closes, so the columns never actually appear.
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------
